@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Imagen provisoria del login (campo + dron). Se puede reemplazar por una foto real. -->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="350dp"
+    android:height="130dp"
+    android:viewportWidth="350"
+    android:viewportHeight="130">
+    <path android:fillColor="#12352A" android:pathData="M0,0h350v130h-350z" />
+    <path android:fillColor="#F28C28" android:pathData="M300,28 m-16,0 a16,16 0 1,1 32,0 a16,16 0 1,1 -32,0" />
+    <path android:fillColor="#2E7D32" android:pathData="M0,95 Q90,60 180,90 T350,80 V130 H0 Z" />
+    <path android:fillColor="#1B5E20" android:pathData="M0,115 Q100,90 200,112 T350,105 V130 H0 Z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M135,42h50v9h-50z" />
+    <path android:fillColor="#FFFFFF" android:pathData="M118,34h26v3h-26z M176,34h26v3h-26z M144,37h32v4h-32z" />
+</vector>
