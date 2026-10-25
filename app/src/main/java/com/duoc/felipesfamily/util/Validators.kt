@@ -2,10 +2,6 @@ package com.duoc.felipesfamily.util
 
 import java.security.MessageDigest
 
-/**
- * Reglas de validación, separadas de la interfaz (no usan Compose).
- * Cada función devuelve el mensaje de error, o null si el valor es válido.
- */
 object Validators {
     private val aliasRegex = Regex("^[A-Za-z0-9_]{4,20}$")
     private val periodRegex = Regex("""^(\d{1,2})/(\d{1,2})\s*[-–]\s*(\d{1,2})/(\d{1,2})$""")
@@ -49,7 +45,6 @@ object Validators {
         return if (n == null || n < min || n > max) "Ingresa un número entre $min y $max" else null
     }
 
-    /** Convierte "dd/mm - dd/mm" en (inicio, fin) comparables; null si el formato es inválido. */
     fun parsePeriod(value: String): Pair<Int, Int>? {
         val m = periodRegex.matchEntire(value.trim()) ?: return null
         val g = m.groupValues.drop(1).map { it.toInt() }
@@ -69,7 +64,6 @@ object Validators {
         return x.first <= y.second && y.first <= x.second
     }
 
-    /** Hash SHA-256 para no guardar la contraseña en texto plano. */
     fun hash(value: String): String =
         MessageDigest.getInstance("SHA-256")
             .digest(value.toByteArray())
