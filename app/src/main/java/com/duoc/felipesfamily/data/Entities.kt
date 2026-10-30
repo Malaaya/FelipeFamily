@@ -56,9 +56,10 @@ data class NeedEntity(
 )
 
 /** Perfil demostrativo de un prestador de servicios. */
-@Entity(tableName = "provider_profiles")
+@Entity(tableName = "provider_profiles", indices = [Index("userId")])
 data class ProviderProfileEntity(
-    @PrimaryKey val userId: Long,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: Long,
     val services: String,
     val coverageKm: Int,
     val capacityHaDay: Int,

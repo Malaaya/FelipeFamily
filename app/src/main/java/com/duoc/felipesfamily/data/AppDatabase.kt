@@ -11,7 +11,7 @@ import com.duoc.felipesfamily.util.Validators
         UserEntity::class, SessionEntity::class, NeedEntity::class,
         ProviderProfileEntity::class, ServiceEntity::class, InterestEntity::class
     ],
-    version = 4,
+    version = 5,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -35,9 +35,9 @@ abstract class AppDatabase : RoomDatabase() {
         val a = userDao().insert(UserEntity(alias = "prestador_demo01", passwordHash = clave, role = Roles.PROVIDER, zone = "Zona Sur-2"))
         val b = userDao().insert(UserEntity(alias = "prestador_demo02", passwordHash = clave, role = Roles.PROVIDER, zone = "Zona Sur-1"))
         val c = userDao().insert(UserEntity(alias = "prestador_demo03", passwordHash = clave, role = Roles.PROVIDER, zone = "Zona Centro-4"))
-        providerDao().save(ProviderProfileEntity(a, "Fumigación con dron", 40, 30, 5, "15/11 - 30/11", 4.6, displayName = "Drones Valle Sur"))
-        providerDao().save(ProviderProfileEntity(b, "Fumigación con dron", 25, 20, 3, "20/11 - 25/11", 4.2, displayName = "AeroAgro Araucanía"))
-        providerDao().save(ProviderProfileEntity(c, "Aplicación foliar", 60, 40, 8, "10/11 - 30/11", 4.8, displayName = "FoliarTec Centro"))
+        providerDao().save(ProviderProfileEntity(userId = a, services = "Fumigación con dron", coverageKm = 40, capacityHaDay = 30, experienceYears = 5, availability = "15/11 - 30/11", rating = 4.6, displayName = "Drones Valle Sur"))
+        providerDao().save(ProviderProfileEntity(userId = b, services = "Fumigación con dron", coverageKm = 25, capacityHaDay = 20, experienceYears = 3, availability = "20/11 - 25/11", rating = 4.2, displayName = "AeroAgro Araucanía"))
+        providerDao().save(ProviderProfileEntity(userId = c, services = "Aplicación foliar", coverageKm = 60, capacityHaDay = 40, experienceYears = 8, availability = "10/11 - 30/11", rating = 4.8, displayName = "FoliarTec Centro"))
     }
 
     companion object {

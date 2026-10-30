@@ -55,8 +55,8 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
     private val _detailNeeds = MutableStateFlow<List<NeedEntity>>(emptyList())
     val detailNeeds: StateFlow<List<NeedEntity>> = _detailNeeds.asStateFlow()
 
-    private val _detailProfile = MutableStateFlow<ProviderProfileEntity?>(null)
-    val detailProfile: StateFlow<ProviderProfileEntity?> = _detailProfile.asStateFlow()
+    private val _detailProfile = MutableStateFlow<List<ProviderProfileEntity>>(emptyList())
+    val detailProfile: StateFlow<List<ProviderProfileEntity>> = _detailProfile.asStateFlow()
 
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
@@ -77,13 +77,13 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
     private suspend fun reloadDetail() {
         val u = _detailUser.value ?: return
         _detailNeeds.value = if (u.role == Roles.PRODUCER) db.needDao().byProducer(u.id) else emptyList()
-        _detailProfile.value = if (u.role == Roles.PROVIDER) db.providerDao().profile(u.id) else null
+        _detailProfile.value = if (u.role == Roles.PROVIDER) db.providerDao().profiles(u.id) else emptyList()
     }
 
     fun openUser(u: UserEntity) {
         _detailUser.value = u
         _detailNeeds.value = emptyList()
-        _detailProfile.value = null
+        _detailProfile.value = emptyList()
         viewModelScope.launch { reloadDetail() }
     }
 
@@ -98,11 +98,11 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
         }
     }
 
-    /** Borra la prestación de un prestador junto con los intereses asociados. */
-    fun deleteProfile(userId: Long) {
+    /** Borra una prestación; si era la última del prestador, borra también sus intereses. */
+    fun deleteProfile(profile: ProviderProfileEntity) {
         viewModelScope.launch {
-            db.interestDao().deleteByProvider(userId)
-            db.providerDao().delete(userId)
+            db.providerDao().delete(profile.id)
+            if (db.providerDao().countByUser(profile.userId) == 0) db.interestDao().deleteByProvider(profile.userId)
             reloadDetail()
             refresh()
             _message.value = "Prestación eliminada."

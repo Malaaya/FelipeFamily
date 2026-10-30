@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.ui.*
 import com.duoc.felipesfamily.viewmodel.AdminViewModel
@@ -144,11 +145,11 @@ fun AdminUsersScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onOpen: ()
 fun AdminUserDetailScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onBack: () -> Unit, onLogout: () -> Unit) {
     val user by vm.detailUser.collectAsState()
     val needs by vm.detailNeeds.collectAsState()
-    val profile by vm.detailProfile.collectAsState()
+    val profiles by vm.detailProfile.collectAsState()
     val message by vm.message.collectAsState()
     var confirm by remember { mutableStateOf(false) }
     var pendingNeed by remember { mutableStateOf<Long?>(null) }
-    var deleteProfile by remember { mutableStateOf(false) }
+    var pendingProfile by remember { mutableStateOf<ProviderProfileEntity?>(null) }
 
     ScreenScaffold(title = "Perfil de usuario", onBack = onBack, actions = { LogoutAction { confirm = true } }, bottomBar = bar) { padding ->
         ScrollColumn(padding) {
@@ -156,10 +157,8 @@ fun AdminUserDetailScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onBac
                 InfoCard(listOf("Alias" to u.alias, "Rol" to u.role, "Zona referencial" to u.zone))
                 if (u.role == Roles.PROVIDER) {
                     SectionTitle("Prestación de servicios")
-                    val p = profile
-                    if (p == null) {
-                        Text("Este prestador no tiene una prestación creada.")
-                    } else {
+                    if (profiles.isEmpty()) Text("Este prestador no tiene prestaciones creadas.")
+                    profiles.forEach { p ->
                         InfoCard(
                             listOf(
                                 "Nombre" to p.displayName.ifBlank { "—" },
@@ -171,7 +170,7 @@ fun AdminUserDetailScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onBac
                                 "Disponibilidad" to p.availability
                             )
                         )
-                        OutlineButton("Eliminar prestación", onClick = { deleteProfile = true })
+                        OutlineButton("Eliminar prestación", onClick = { pendingProfile = p })
                     }
                 } else if (u.role == Roles.PRODUCER) {
                     SectionTitle("Peticiones")
@@ -194,10 +193,10 @@ fun AdminUserDetailScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onBac
             { pendingNeed = null; vm.deleteNeed(id) }, { pendingNeed = null }
         )
     }
-    if (deleteProfile) {
+    pendingProfile?.let { p ->
         ConfirmDialog(
-            "Eliminar prestación", "Se borrará la prestación y los intereses asociados.", "Eliminar",
-            { deleteProfile = false; user?.let { vm.deleteProfile(it.id) } }, { deleteProfile = false }
+            "Eliminar prestación", "Se borrará esta prestación del prestador.", "Eliminar",
+            { pendingProfile = null; vm.deleteProfile(p) }, { pendingProfile = null }
         )
     }
     if (confirm) {
