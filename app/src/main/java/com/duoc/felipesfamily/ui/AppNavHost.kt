@@ -5,6 +5,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Build
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.Notifications
 import androidx.compose.material.icons.filled.Person
@@ -35,6 +36,8 @@ object Routes {
     const val P_PROFILE = "producer_profile"
     const val V_INTERESTS = "provider_interests"
     const val V_DETAIL = "provider_detail"
+    const val V_SERVICES = "provider_services"
+    const val V_FORM = "provider_form"
     const val V_PROFILE = "provider_profile"
     const val A_PANEL = "admin_panel"
     const val A_CATALOG = "admin_catalog"
@@ -57,7 +60,8 @@ private val producerItems = listOf(
 )
 private val providerItems = listOf(
     NavItem(Routes.V_INTERESTS, "Interesados", Icons.Filled.Notifications),
-    NavItem(Routes.V_PROFILE, "Mi perfil", Icons.Filled.Person)
+    NavItem(Routes.V_SERVICES, "Prestaciones", Icons.Filled.Build),
+    NavItem(Routes.V_PROFILE, "Perfil", Icons.Filled.Person)
 )
 private val adminItems = listOf(
     NavItem(Routes.A_PANEL, "Panel", Icons.Filled.Home),
@@ -161,9 +165,24 @@ fun AppNavHost(
                 onDone = { nav.popBackStack() }
             )
         }
+        composable(Routes.V_SERVICES) {
+            ProviderServicesScreen(
+                providerVm,
+                bar = { AppBottomBar(providerItems, Routes.V_SERVICES, providerTab) },
+                onNew = { nav.navigate(Routes.V_FORM) },
+                onEdit = { nav.navigate(Routes.V_FORM) }
+            )
+        }
+        composable(Routes.V_FORM) {
+            ProviderFormScreen(
+                providerVm,
+                bar = { AppBottomBar(providerItems, Routes.V_SERVICES, providerTab) },
+                onBack = { nav.popBackStack() }
+            )
+        }
         composable(Routes.V_PROFILE) {
             ProviderProfileScreen(
-                providerVm,
+                user,
                 bar = { AppBottomBar(providerItems, Routes.V_PROFILE, providerTab) },
                 onLogout = vm::logout
             )

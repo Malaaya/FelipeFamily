@@ -8,8 +8,12 @@ import androidx.room.Update
 
 /** Resultado de unir usuario + perfil de prestador. */
 data class ProviderInfo(
+    /** Id de la prestación (un prestador puede tener varias). */
+    val profileId: Long,
     val userId: Long,
     val alias: String,
+    /** Nombre amigable de la prestación (o el alias si no tiene). */
+    val name: String,
     val zone: String,
     val services: String,
     val coverageKm: Int,
@@ -81,24 +85,27 @@ interface NeedDao {
 @Dao
 interface ProviderDao {
     @Insert(onConflict = OnConflictStrategy.REPLACE)
-    suspend fun save(profile: ProviderProfileEntity)
+    suspend fun save(profile: ProviderProfileEntity): Long
 
-    @Query("SELECT * FROM provider_profiles WHERE userId = :userId")
-    suspend fun profile(userId: Long): ProviderProfileEntity?
+    @Query("SELECT * FROM provider_profiles WHERE userId = :userId ORDER BY id DESC")
+    suspend fun profiles(userId: Long): List<ProviderProfileEntity>
+
+    @Query("SELECT COUNT(*) FROM provider_profiles WHERE userId = :userId")
+    suspend fun countByUser(userId: Long): Int
 
     @Query(
-        "SELECT u.id AS userId, u.alias AS alias, u.zone AS zone, p.services AS services, " +
+        "SELECT p.id AS profileId, u.id AS userId, u.alias AS alias, COALESCE(NULLIF(p.displayName, ''), u.alias) AS name, u.zone AS zone, p.services AS services, " +
             "p.coverageKm AS coverageKm, p.capacityHaDay AS capacityHaDay, " +
             "p.experienceYears AS experienceYears, p.availability AS availability, p.rating AS rating " +
             "FROM users u INNER JOIN provider_profiles p ON p.userId = u.id WHERE p.active = 1"
     )
     suspend fun all(): List<ProviderInfo>
 
-    @Query("UPDATE provider_profiles SET active = :active WHERE userId = :userId")
-    suspend fun setActive(userId: Long, active: Boolean)
+    @Query("UPDATE provider_profiles SET active = :active WHERE id = :id")
+    suspend fun setActive(id: Long, active: Boolean)
 
-    @Query("DELETE FROM provider_profiles WHERE userId = :userId")
-    suspend fun delete(userId: Long)
+    @Query("DELETE FROM provider_profiles WHERE id = :id")
+    suspend fun delete(id: Long)
 
     @Query("SELECT COUNT(*) FROM provider_profiles")
     suspend fun count(): Int

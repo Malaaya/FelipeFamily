@@ -56,9 +56,10 @@ data class NeedEntity(
 )
 
 /** Perfil demostrativo de un prestador de servicios. */
-@Entity(tableName = "provider_profiles")
+@Entity(tableName = "provider_profiles", indices = [Index("userId")])
 data class ProviderProfileEntity(
-    @PrimaryKey val userId: Long,
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: Long,
     val services: String,
     val coverageKm: Int,
     val capacityHaDay: Int,
@@ -66,7 +67,9 @@ data class ProviderProfileEntity(
     val availability: String,
     val rating: Double = 4.5,
     /** false = prestación desactivada: no aparece en el matching. */
-    @ColumnInfo(defaultValue = "1") val active: Boolean = true
+    @ColumnInfo(defaultValue = "1") val active: Boolean = true,
+    /** Nombre comercial de la prestación (si está vacío se usa el alias). */
+    @ColumnInfo(defaultValue = "") val displayName: String = ""
 )
 
 /** Catálogo de servicios y criterios de matching (lo administra el admin). */

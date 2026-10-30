@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class ProviderForm(
+    val name: String = "",
+    val nameError: String? = null,
     val services: String = "",
     val coverage: String = "",
     val capacity: String = "",
@@ -32,6 +34,7 @@ data class ProviderForm(
 
 private fun ProviderForm.validated() = copy(
     submitted = true,
+    nameError = if (name.trim().length > 30) "Máximo 30 caracteres" else null,
     servicesError = Validators.required(services, "Indica al menos un servicio"),
     coverageError = Validators.intInRange(coverage, 1, 500),
     capacityError = Validators.intInRange(capacity, 1, 1000),
@@ -40,14 +43,14 @@ private fun ProviderForm.validated() = copy(
 )
 
 private val ProviderForm.hasErrors
-    get() = servicesError != null || coverageError != null || capacityError != null ||
+    get() = nameError != null || servicesError != null || coverageError != null || capacityError != null ||
         experienceError != null || availabilityError != null
 
-/** Flujo del prestador: mantener su perfil y responder a los productores interesados. */
+/** Flujo del prestador: administrar sus prestaciones y responder a los productores interesados. */
 class ProviderViewModel(app: Application) : AndroidViewModel(app) {
     private val db = AppDatabase.get(app)
     private var user: UserEntity? = null
-    private var rating = 4.5
+    private var editing: ProviderProfileEntity? = null
 
     private val _form = MutableStateFlow(ProviderForm())
     val form: StateFlow<ProviderForm> = _form.asStateFlow()
@@ -61,37 +64,34 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved.asStateFlow()
 
-    private val _hasProfile = MutableStateFlow(false)
-    val hasProfile: StateFlow<Boolean> = _hasProfile.asStateFlow()
+    /** Prestaciones ya creadas por el prestador. */
+    private val _profiles = MutableStateFlow<List<ProviderProfileEntity>>(emptyList())
+    val profiles: StateFlow<List<ProviderProfileEntity>> = _profiles.asStateFlow()
 
-    private val _active = MutableStateFlow(true)
-    val active: StateFlow<Boolean> = _active.asStateFlow()
+    private val _isEditing = MutableStateFlow(false)
+    val isEditing: StateFlow<Boolean> = _isEditing.asStateFlow()
 
     private val _rating = MutableStateFlow(4.5)
     val ratingValue: StateFlow<Double> = _rating.asStateFlow()
 
     fun setUser(u: UserEntity?) {
         user = u?.takeIf { it.role == Roles.PROVIDER }
+        editing = null
+        _isEditing.value = false
         _interests.value = emptyList()
         _selected.value = null
+        _profiles.value = emptyList()
         _form.value = ProviderForm()
-        _hasProfile.value = false
-        _active.value = true
-        val current = user ?: return
+        if (user == null) return
         viewModelScope.launch {
-            db.providerDao().profile(current.id)?.let { p ->
-                rating = p.rating
-                _rating.value = p.rating
-                _hasProfile.value = true
-                _active.value = p.active
-                _form.value = ProviderForm(
-                    services = p.services, coverage = p.coverageKm.toString(),
-                    capacity = p.capacityHaDay.toString(), experience = p.experienceYears.toString(),
-                    availability = p.availability
-                )
-            }
+            loadProfiles()
             loadInterests()
         }
+    }
+
+    private suspend fun loadProfiles() {
+        val u = user ?: return
+        _profiles.value = db.providerDao().profiles(u.id)
     }
 
     private suspend fun loadInterests() {
@@ -100,10 +100,34 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun refresh() {
-        viewModelScope.launch { loadInterests() }
+        viewModelScope.launch {
+            loadProfiles()
+            loadInterests()
+        }
+    }
+
+    /** Prepara el formulario para crear una prestación nueva. */
+    fun startNew() {
+        editing = null
+        _isEditing.value = false
+        _rating.value = 4.5
+        _form.value = ProviderForm()
+    }
+
+    /** Prepara el formulario para editar una prestación existente. */
+    fun startEdit(p: ProviderProfileEntity) {
+        editing = p
+        _isEditing.value = true
+        _rating.value = p.rating
+        _form.value = ProviderForm(
+            name = p.displayName, services = p.services, coverage = p.coverageKm.toString(),
+            capacity = p.capacityHaDay.toString(), experience = p.experienceYears.toString(),
+            availability = p.availability
+        )
     }
 
     fun onFormChange(
+        name: String = _form.value.name,
         services: String = _form.value.services,
         coverage: String = _form.value.coverage,
         capacity: String = _form.value.capacity,
@@ -111,7 +135,7 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
         availability: String = _form.value.availability
     ) {
         val next = _form.value.copy(
-            services = services, coverage = coverage, capacity = capacity,
+            name = name, services = services, coverage = coverage, capacity = capacity,
             experience = experience, availability = availability
         )
         _form.value = if (next.submitted) next.validated() else next
@@ -122,41 +146,37 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
         val f = _form.value.validated()
         _form.value = f
         if (f.hasErrors) return
+        val current = editing
         viewModelScope.launch {
             db.providerDao().save(
                 ProviderProfileEntity(
-                    userId = u.id, services = f.services.trim(),
+                    id = current?.id ?: 0, userId = u.id, services = f.services.trim(),
                     coverageKm = f.coverage.trim().toInt(), capacityHaDay = f.capacity.trim().toInt(),
                     experienceYears = f.experience.trim().toInt(), availability = f.availability.trim(),
-                    rating = rating, active = _active.value
+                    rating = current?.rating ?: 4.5, active = current?.active ?: true, displayName = f.name.trim()
                 )
             )
-            _hasProfile.value = true
+            loadProfiles()
             _saved.value = true
         }
     }
 
-    /** Activa o desactiva la prestación (desactivada no aparece en el matching). */
-    fun toggleActive() {
-        val u = user ?: return
-        if (!_hasProfile.value) return
+    /** Activa o desactiva una prestación (desactivada no aparece en el matching). */
+    fun toggleActive(p: ProviderProfileEntity) {
         viewModelScope.launch {
-            val next = !_active.value
-            db.providerDao().setActive(u.id, next)
-            _active.value = next
+            db.providerDao().setActive(p.id, !p.active)
+            loadProfiles()
         }
     }
 
-    /** Borra la prestación creada y los intereses asociados; el prestador puede crear otra después. */
-    fun deleteService() {
+    /** Borra una prestación; si era la última, borra también los intereses recibidos. */
+    fun deleteService(p: ProviderProfileEntity) {
         val u = user ?: return
         viewModelScope.launch {
-            db.interestDao().deleteByProvider(u.id)
-            db.providerDao().delete(u.id)
-            _hasProfile.value = false
-            _active.value = true
-            _form.value = ProviderForm()
-            _interests.value = emptyList()
+            db.providerDao().delete(p.id)
+            if (db.providerDao().countByUser(u.id) == 0) db.interestDao().deleteByProvider(u.id)
+            loadProfiles()
+            loadInterests()
             _selected.value = null
         }
     }
