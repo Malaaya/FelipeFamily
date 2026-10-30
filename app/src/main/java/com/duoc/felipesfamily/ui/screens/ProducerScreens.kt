@@ -71,6 +71,7 @@ fun NewNeedScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
                 error = f.zoneError, valid = f.submitted && f.zoneError == null, placeholder = "Ej: Zona Sur-2",
                 leadingIcon = Icons.Filled.LocationOn
             )
+            ZoneMap(listOf(MapPoint("Tu zona", f.zone, f.zone, isNeed = true)))
             AppTextField(
                 label = "Ventana de disponibilidad", value = f.period, onValueChange = { vm.onFormChange(period = it) },
                 error = f.periodError, valid = f.submitted && f.periodError == null, placeholder = "dd/mm - dd/mm",
@@ -102,6 +103,14 @@ fun ResultsScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
                     "Necesidad: ${it.service} · ${it.crop} · ${fmtHa(it.surfaceHa)} ha · ${it.zone}",
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+            }
+            need?.let { n ->
+                ZoneMap(
+                    listOf(MapPoint("Tu necesidad", "${n.service} · ${n.zone}", n.zone, isNeed = true)) +
+                        results.map { r ->
+                            MapPoint(r.provider.alias, "${r.score}% compatible · cobertura ${r.provider.coverageKm} km", r.provider.zone, coverageKm = r.provider.coverageKm)
+                        }
                 )
             }
             if (results.isEmpty()) {

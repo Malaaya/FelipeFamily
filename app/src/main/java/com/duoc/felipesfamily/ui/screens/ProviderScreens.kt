@@ -50,6 +50,7 @@ fun InterestDetailScreen(vm: ProviderViewModel, bar: @Composable () -> Unit, onB
                         "Producto" to i.product
                     )
                 )
+                ZoneMap(listOf(MapPoint(i.producerAlias, "Necesidad de ${i.service} · ${i.zone}", i.zone, isNeed = true)))
                 Text(
                     "Vinculación simulada: este MVP no incluye contratación ni pagos.",
                     style = MaterialTheme.typography.bodySmall,
@@ -69,7 +70,10 @@ fun ProviderProfileScreen(vm: ProviderViewModel, bar: @Composable () -> Unit, on
     val f by vm.form.collectAsState()
     val saved by vm.saved.collectAsState()
     val rating by vm.ratingValue.collectAsState()
+    val hasProfile by vm.hasProfile.collectAsState()
+    val active by vm.active.collectAsState()
     var confirm by remember { mutableStateOf(false) }
+    var confirmDelete by remember { mutableStateOf(false) }
     ScreenScaffold(title = "Mi perfil de servicios", bottomBar = bar) { padding ->
         ScrollColumn(padding) {
             AppTextField(
@@ -94,6 +98,14 @@ fun ProviderProfileScreen(vm: ProviderViewModel, bar: @Composable () -> Unit, on
             )
             Text("Calificación demostrativa: ${"%.1f".format(rating)} ★", color = MaterialTheme.colorScheme.secondary)
             PrimaryButton("Guardar perfil", onClick = vm::saveProfile)
+            if (hasProfile) {
+                Text(
+                    if (active) "Estado: activa (visible para los productores)" else "Estado: desactivada (no aparece en el matching)",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant
+                )
+                OutlineButton(if (active) "Desactivar prestación" else "Activar prestación", onClick = vm::toggleActive)
+                OutlineButton("Eliminar prestación", onClick = { confirmDelete = true })
+            }
             OutlineButton("Cerrar sesión", onClick = { confirm = true })
         }
     }
@@ -103,6 +115,12 @@ fun ProviderProfileScreen(vm: ProviderViewModel, bar: @Composable () -> Unit, on
             title = { Text("Perfil guardado") },
             text = { Text("Tus servicios ya pueden aparecer en el matching de los productores.") },
             confirmButton = { TextButton(onClick = vm::dismissSaved) { Text("Listo") } }
+        )
+    }
+    if (confirmDelete) {
+        ConfirmDialog(
+            "Eliminar prestación", "Se borrará tu prestación y los intereses recibidos. Podrás crear otra después.", "Eliminar",
+            { confirmDelete = false; vm.deleteService() }, { confirmDelete = false }
         )
     }
     if (confirm) {

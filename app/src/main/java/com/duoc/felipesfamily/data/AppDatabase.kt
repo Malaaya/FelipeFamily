@@ -11,7 +11,7 @@ import com.duoc.felipesfamily.util.Validators
         UserEntity::class, SessionEntity::class, NeedEntity::class,
         ProviderProfileEntity::class, ServiceEntity::class, InterestEntity::class
     ],
-    version = 2,
+    version = 3,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {

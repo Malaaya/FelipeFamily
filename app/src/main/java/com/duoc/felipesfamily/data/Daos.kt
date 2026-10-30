@@ -71,6 +71,9 @@ interface NeedDao {
     @Update
     suspend fun update(need: NeedEntity)
 
+    @Query("DELETE FROM needs WHERE id = :id")
+    suspend fun deleteById(id: Long)
+
     @Query("SELECT * FROM needs WHERE producerId = :producerId ORDER BY id DESC")
     suspend fun byProducer(producerId: Long): List<NeedEntity>
 }
@@ -87,9 +90,15 @@ interface ProviderDao {
         "SELECT u.id AS userId, u.alias AS alias, u.zone AS zone, p.services AS services, " +
             "p.coverageKm AS coverageKm, p.capacityHaDay AS capacityHaDay, " +
             "p.experienceYears AS experienceYears, p.availability AS availability, p.rating AS rating " +
-            "FROM users u INNER JOIN provider_profiles p ON p.userId = u.id"
+            "FROM users u INNER JOIN provider_profiles p ON p.userId = u.id WHERE p.active = 1"
     )
     suspend fun all(): List<ProviderInfo>
+
+    @Query("UPDATE provider_profiles SET active = :active WHERE userId = :userId")
+    suspend fun setActive(userId: Long, active: Boolean)
+
+    @Query("DELETE FROM provider_profiles WHERE userId = :userId")
+    suspend fun delete(userId: Long)
 
     @Query("SELECT COUNT(*) FROM provider_profiles")
     suspend fun count(): Int
@@ -111,6 +120,12 @@ interface ServiceDao {
 interface InterestDao {
     @Insert
     suspend fun insert(interest: InterestEntity): Long
+
+    @Query("DELETE FROM interests WHERE needId = :needId")
+    suspend fun deleteByNeed(needId: Long)
+
+    @Query("DELETE FROM interests WHERE providerId = :providerId")
+    suspend fun deleteByProvider(providerId: Long)
 
     @Query("UPDATE interests SET status = :status WHERE id = :id")
     suspend fun setStatus(id: Long, status: String)

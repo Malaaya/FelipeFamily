@@ -38,6 +38,8 @@ object Routes {
     const val V_PROFILE = "provider_profile"
     const val A_PANEL = "admin_panel"
     const val A_CATALOG = "admin_catalog"
+    const val A_USERS = "admin_users"
+    const val A_USER_DETAIL = "admin_user_detail"
 
     val authRoutes = listOf(LOGIN, REGISTER, RECOVER)
 
@@ -59,7 +61,8 @@ private val providerItems = listOf(
 )
 private val adminItems = listOf(
     NavItem(Routes.A_PANEL, "Panel", Icons.Filled.Home),
-    NavItem(Routes.A_CATALOG, "Catálogo", Icons.Filled.Settings)
+    NavItem(Routes.A_CATALOG, "Catálogo", Icons.Filled.Settings),
+    NavItem(Routes.A_USERS, "Usuarios", Icons.Filled.Person)
 )
 
 @Composable
@@ -179,6 +182,22 @@ fun AppNavHost(
             AdminCatalogScreen(
                 adminVm,
                 bar = { AppBottomBar(adminItems, Routes.A_CATALOG, adminTab) },
+                onLogout = vm::logout
+            )
+        }
+        composable(Routes.A_USERS) {
+            AdminUsersScreen(
+                adminVm,
+                bar = { AppBottomBar(adminItems, Routes.A_USERS, adminTab) },
+                onOpen = { nav.navigate(Routes.A_USER_DETAIL) },
+                onLogout = vm::logout
+            )
+        }
+        composable(Routes.A_USER_DETAIL) {
+            AdminUserDetailScreen(
+                adminVm,
+                bar = { AppBottomBar(adminItems, Routes.A_USERS, adminTab) },
+                onBack = { nav.popBackStack() },
                 onLogout = vm::logout
             )
         }

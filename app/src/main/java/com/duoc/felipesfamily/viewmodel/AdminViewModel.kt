@@ -5,6 +5,8 @@ import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.duoc.felipesfamily.data.AppDatabase
+import com.duoc.felipesfamily.data.NeedEntity
+import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.data.ServiceEntity
 import com.duoc.felipesfamily.data.UserEntity
@@ -47,6 +49,15 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
     private val _form = MutableStateFlow(ServiceForm())
     val form: StateFlow<ServiceForm> = _form.asStateFlow()
 
+    private val _detailUser = MutableStateFlow<UserEntity?>(null)
+    val detailUser: StateFlow<UserEntity?> = _detailUser.asStateFlow()
+
+    private val _detailNeeds = MutableStateFlow<List<NeedEntity>>(emptyList())
+    val detailNeeds: StateFlow<List<NeedEntity>> = _detailNeeds.asStateFlow()
+
+    private val _detailProfile = MutableStateFlow<ProviderProfileEntity?>(null)
+    val detailProfile: StateFlow<ProviderProfileEntity?> = _detailProfile.asStateFlow()
+
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
@@ -59,6 +70,42 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
             _users.value = db.userDao().all()
             _providers.value = db.providerDao().count()
             _services.value = db.serviceDao().all()
+        }
+    }
+
+    // ---------- Perfiles de usuarios ----------
+    private suspend fun reloadDetail() {
+        val u = _detailUser.value ?: return
+        _detailNeeds.value = if (u.role == Roles.PRODUCER) db.needDao().byProducer(u.id) else emptyList()
+        _detailProfile.value = if (u.role == Roles.PROVIDER) db.providerDao().profile(u.id) else null
+    }
+
+    fun openUser(u: UserEntity) {
+        _detailUser.value = u
+        _detailNeeds.value = emptyList()
+        _detailProfile.value = null
+        viewModelScope.launch { reloadDetail() }
+    }
+
+    /** Borra una petición de un productor junto con los intereses asociados. */
+    fun deleteNeed(id: Long) {
+        viewModelScope.launch {
+            db.interestDao().deleteByNeed(id)
+            db.needDao().deleteById(id)
+            reloadDetail()
+            refresh()
+            _message.value = "Petición eliminada."
+        }
+    }
+
+    /** Borra la prestación de un prestador junto con los intereses asociados. */
+    fun deleteProfile(userId: Long) {
+        viewModelScope.launch {
+            db.interestDao().deleteByProvider(userId)
+            db.providerDao().delete(userId)
+            reloadDetail()
+            refresh()
+            _message.value = "Prestación eliminada."
         }
     }
 

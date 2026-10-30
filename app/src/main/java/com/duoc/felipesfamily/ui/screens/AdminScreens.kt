@@ -11,6 +11,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
+import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.ui.*
 import com.duoc.felipesfamily.viewmodel.AdminViewModel
 
@@ -35,7 +36,7 @@ private fun MessageDialog(vm: AdminViewModel, message: String?) {
     message?.let {
         AlertDialog(
             onDismissRequest = vm::dismissMessage,
-            title = { Text("Catálogo") },
+            title = { Text("Aviso") },
             text = { Text(it) },
             confirmButton = { TextButton(onClick = vm::dismissMessage) { Text("Entendido") } }
         )
@@ -111,6 +112,93 @@ fun AdminCatalogScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onLogout
         }
     }
     MessageDialog(vm, message)
+    if (confirm) {
+        ConfirmDialog("Cerrar sesión", "¿Seguro que quieres salir?", "Salir", { confirm = false; onLogout() }, { confirm = false })
+    }
+}
+
+@Composable
+fun AdminUsersScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onOpen: () -> Unit, onLogout: () -> Unit) {
+    val users by vm.users.collectAsState()
+    var confirm by remember { mutableStateOf(false) }
+    LaunchedEffect(Unit) { vm.refresh() }
+
+    ScreenScaffold(title = "Usuarios", actions = { LogoutAction { confirm = true } }, bottomBar = bar) { padding ->
+        ScrollColumn(padding) {
+            val list = users.filter { it.role != Roles.ADMIN }
+            if (list.isEmpty()) Text("Aún no hay usuarios registrados.")
+            list.forEach { u ->
+                AppCard(
+                    title = u.alias, status = u.role, statusColor = MaterialTheme.colorScheme.primary,
+                    lines = listOf(u.zone), onClick = { vm.openUser(u); onOpen() }
+                )
+            }
+        }
+    }
+    if (confirm) {
+        ConfirmDialog("Cerrar sesión", "¿Seguro que quieres salir?", "Salir", { confirm = false; onLogout() }, { confirm = false })
+    }
+}
+
+@Composable
+fun AdminUserDetailScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onBack: () -> Unit, onLogout: () -> Unit) {
+    val user by vm.detailUser.collectAsState()
+    val needs by vm.detailNeeds.collectAsState()
+    val profile by vm.detailProfile.collectAsState()
+    val message by vm.message.collectAsState()
+    var confirm by remember { mutableStateOf(false) }
+    var pendingNeed by remember { mutableStateOf<Long?>(null) }
+    var deleteProfile by remember { mutableStateOf(false) }
+
+    ScreenScaffold(title = "Perfil de usuario", onBack = onBack, actions = { LogoutAction { confirm = true } }, bottomBar = bar) { padding ->
+        ScrollColumn(padding) {
+            user?.let { u ->
+                InfoCard(listOf("Alias" to u.alias, "Rol" to u.role, "Zona referencial" to u.zone))
+                if (u.role == Roles.PROVIDER) {
+                    SectionTitle("Prestación de servicios")
+                    val p = profile
+                    if (p == null) {
+                        Text("Este prestador no tiene una prestación creada.")
+                    } else {
+                        InfoCard(
+                            listOf(
+                                "Servicios" to p.services,
+                                "Estado" to if (p.active) "Activa" else "Desactivada",
+                                "Cobertura" to "${p.coverageKm} km",
+                                "Capacidad" to "${p.capacityHaDay} ha/día",
+                                "Experiencia" to "${p.experienceYears} años",
+                                "Disponibilidad" to p.availability
+                            )
+                        )
+                        OutlineButton("Eliminar prestación", onClick = { deleteProfile = true })
+                    }
+                } else if (u.role == Roles.PRODUCER) {
+                    SectionTitle("Peticiones")
+                    if (needs.isEmpty()) Text("Este usuario no tiene peticiones.")
+                    needs.forEach { n ->
+                        AppCard(
+                            title = n.service, status = n.status, statusColor = statusColor(n.status),
+                            lines = listOf("${fmtHa(n.surfaceHa)} ha  ·  ${n.crop}  ·  ${n.zone}", n.period)
+                        )
+                        OutlineButton("Eliminar petición", onClick = { pendingNeed = n.id })
+                    }
+                }
+            }
+        }
+    }
+    MessageDialog(vm, message)
+    pendingNeed?.let { id ->
+        ConfirmDialog(
+            "Eliminar petición", "Se borrará la petición y los intereses asociados.", "Eliminar",
+            { pendingNeed = null; vm.deleteNeed(id) }, { pendingNeed = null }
+        )
+    }
+    if (deleteProfile) {
+        ConfirmDialog(
+            "Eliminar prestación", "Se borrará la prestación y los intereses asociados.", "Eliminar",
+            { deleteProfile = false; user?.let { vm.deleteProfile(it.id) } }, { deleteProfile = false }
+        )
+    }
     if (confirm) {
         ConfirmDialog("Cerrar sesión", "¿Seguro que quieres salir?", "Salir", { confirm = false; onLogout() }, { confirm = false })
     }

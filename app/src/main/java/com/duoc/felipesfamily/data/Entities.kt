@@ -1,5 +1,6 @@
 package com.duoc.felipesfamily.data
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
@@ -63,7 +64,9 @@ data class ProviderProfileEntity(
     val capacityHaDay: Int,
     val experienceYears: Int,
     val availability: String,
-    val rating: Double = 4.5
+    val rating: Double = 4.5,
+    /** false = prestación desactivada: no aparece en el matching. */
+    @ColumnInfo(defaultValue = "1") val active: Boolean = true
 )
 
 /** Catálogo de servicios y criterios de matching (lo administra el admin). */

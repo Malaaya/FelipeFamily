@@ -61,6 +61,12 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
     private val _saved = MutableStateFlow(false)
     val saved: StateFlow<Boolean> = _saved.asStateFlow()
 
+    private val _hasProfile = MutableStateFlow(false)
+    val hasProfile: StateFlow<Boolean> = _hasProfile.asStateFlow()
+
+    private val _active = MutableStateFlow(true)
+    val active: StateFlow<Boolean> = _active.asStateFlow()
+
     private val _rating = MutableStateFlow(4.5)
     val ratingValue: StateFlow<Double> = _rating.asStateFlow()
 
@@ -69,11 +75,15 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
         _interests.value = emptyList()
         _selected.value = null
         _form.value = ProviderForm()
+        _hasProfile.value = false
+        _active.value = true
         val current = user ?: return
         viewModelScope.launch {
             db.providerDao().profile(current.id)?.let { p ->
                 rating = p.rating
                 _rating.value = p.rating
+                _hasProfile.value = true
+                _active.value = p.active
                 _form.value = ProviderForm(
                     services = p.services, coverage = p.coverageKm.toString(),
                     capacity = p.capacityHaDay.toString(), experience = p.experienceYears.toString(),
@@ -118,10 +128,36 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
                     userId = u.id, services = f.services.trim(),
                     coverageKm = f.coverage.trim().toInt(), capacityHaDay = f.capacity.trim().toInt(),
                     experienceYears = f.experience.trim().toInt(), availability = f.availability.trim(),
-                    rating = rating
+                    rating = rating, active = _active.value
                 )
             )
+            _hasProfile.value = true
             _saved.value = true
+        }
+    }
+
+    /** Activa o desactiva la prestación (desactivada no aparece en el matching). */
+    fun toggleActive() {
+        val u = user ?: return
+        if (!_hasProfile.value) return
+        viewModelScope.launch {
+            val next = !_active.value
+            db.providerDao().setActive(u.id, next)
+            _active.value = next
+        }
+    }
+
+    /** Borra la prestación creada y los intereses asociados; el prestador puede crear otra después. */
+    fun deleteService() {
+        val u = user ?: return
+        viewModelScope.launch {
+            db.interestDao().deleteByProvider(u.id)
+            db.providerDao().delete(u.id)
+            _hasProfile.value = false
+            _active.value = true
+            _form.value = ProviderForm()
+            _interests.value = emptyList()
+            _selected.value = null
         }
     }
 
