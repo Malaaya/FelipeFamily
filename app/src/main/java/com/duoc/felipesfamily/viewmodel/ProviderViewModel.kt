@@ -6,9 +6,13 @@ import androidx.lifecycle.viewModelScope
 import com.duoc.felipesfamily.data.AppDatabase
 import com.duoc.felipesfamily.data.InterestInfo
 import com.duoc.felipesfamily.data.InterestStatus
+import com.duoc.felipesfamily.data.NeedStatus
+import com.duoc.felipesfamily.data.NotificationEntity
+import com.duoc.felipesfamily.data.ProviderInfo
 import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.data.UserEntity
+import com.duoc.felipesfamily.util.Matching
 import com.duoc.felipesfamily.util.NotificationHelper
 import com.duoc.felipesfamily.util.Validators
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -45,6 +49,8 @@ private fun ProviderForm.validated() = copy(
 private val ProviderForm.hasErrors
     get() = nameError != null || servicesError != null || coverageError != null || capacityError != null ||
         experienceError != null || availabilityError != null
+
+private const val MIN_NOTIFY_SCORE = 70
 
 /** Flujo del prestador: administrar sus prestaciones y responder a los productores interesados. */
 class ProviderViewModel(app: Application) : AndroidViewModel(app) {
@@ -148,16 +154,41 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
         if (f.hasErrors) return
         val current = editing
         viewModelScope.launch {
-            db.providerDao().save(
-                ProviderProfileEntity(
-                    id = current?.id ?: 0, userId = u.id, services = f.services.trim(),
-                    coverageKm = f.coverage.trim().toInt(), capacityHaDay = f.capacity.trim().toInt(),
-                    experienceYears = f.experience.trim().toInt(), availability = f.availability.trim(),
-                    rating = current?.rating ?: 4.5, active = current?.active ?: true, displayName = f.name.trim()
-                )
+            val entity = ProviderProfileEntity(
+                id = current?.id ?: 0, userId = u.id, services = f.services.trim(),
+                coverageKm = f.coverage.trim().toInt(), capacityHaDay = f.capacity.trim().toInt(),
+                experienceYears = f.experience.trim().toInt(), availability = f.availability.trim(),
+                rating = current?.rating ?: 4.5, active = current?.active ?: true, displayName = f.name.trim()
             )
+            val savedId = db.providerDao().save(entity)
             loadProfiles()
+            if (current == null) {
+                notifyMatchingProducers(
+                    ProviderInfo(
+                        profileId = savedId, userId = u.id, alias = u.alias, name = entity.displayName.ifBlank { u.alias },
+                        zone = u.zone, services = entity.services, coverageKm = entity.coverageKm,
+                        capacityHaDay = entity.capacityHaDay, experienceYears = entity.experienceYears,
+                        availability = entity.availability, rating = entity.rating
+                    )
+                )
+            }
             _saved.value = true
+        }
+    }
+
+    /**
+     * Al crear una prestación nueva, avisa a los productores con necesidades abiertas que coincidan
+     * (mismo servicio y compatibilidad alta). El aviso queda en su bandeja y se lanza una notificación local.
+     */
+    private suspend fun notifyMatchingProducers(info: ProviderInfo) {
+        val open = db.needDao().byStatuses(listOf(NeedStatus.NEW, NeedStatus.MATCHED))
+        for (need in open) {
+            val match = Matching.compute(need, listOf(info)).firstOrNull() ?: continue
+            if (match.score < MIN_NOTIFY_SCORE) continue
+            val title = "Nueva prestación compatible"
+            val text = "${info.name} ofrece ${need.service} y coincide un ${match.score}% con tu necesidad (${need.crop}, ${need.zone})."
+            db.notificationDao().insert(NotificationEntity(userId = need.producerId, title = title, message = text))
+            NotificationHelper.show(getApplication(), title, text)
         }
     }
 

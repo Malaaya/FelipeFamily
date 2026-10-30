@@ -33,8 +33,23 @@ import com.duoc.felipesfamily.viewmodel.ProducerViewModel
 @Composable
 fun ProducerNeedsScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onNew: () -> Unit, onOpen: () -> Unit) {
     val needs by vm.needs.collectAsState()
+    val alerts by vm.alerts.collectAsState()
+    LaunchedEffect(Unit) { vm.refreshAlerts() }
     ScreenScaffold(title = "Mis necesidades", bottomBar = bar) { padding ->
         ScrollColumn(padding) {
+            if (alerts.isNotEmpty()) {
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(14.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer)
+                ) {
+                    Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text("Nuevas coincidencias (${alerts.size})", fontWeight = FontWeight.Bold, color = MaterialTheme.colorScheme.onPrimaryContainer)
+                        alerts.forEach { Text(it.message, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onPrimaryContainer) }
+                        TextButton(onClick = vm::markAlertsSeen) { Text("Marcar como leídas") }
+                    }
+                }
+            }
             if (needs.isEmpty()) {
                 Text(
                     "Aún no registras necesidades. Crea la primera con el botón de abajo.",

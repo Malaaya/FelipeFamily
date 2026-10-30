@@ -9,9 +9,9 @@ import com.duoc.felipesfamily.util.Validators
 @Database(
     entities = [
         UserEntity::class, SessionEntity::class, NeedEntity::class,
-        ProviderProfileEntity::class, ServiceEntity::class, InterestEntity::class
+        ProviderProfileEntity::class, ServiceEntity::class, InterestEntity::class, NotificationEntity::class
     ],
-    version = 5,
+    version = 6,
     exportSchema = false
 )
 abstract class AppDatabase : RoomDatabase() {
@@ -20,6 +20,7 @@ abstract class AppDatabase : RoomDatabase() {
     abstract fun needDao(): NeedDao
     abstract fun providerDao(): ProviderDao
     abstract fun serviceDao(): ServiceDao
+    abstract fun notificationDao(): NotificationDao
     abstract fun interestDao(): InterestDao
 
     /** Carga datos ficticios de prueba la primera vez que se abre la app. */

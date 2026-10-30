@@ -1,7 +1,5 @@
 package com.duoc.felipesfamily.ui.screens
 
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
@@ -51,10 +49,6 @@ fun AdminPanelScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onCatalog:
     val services by vm.services.collectAsState()
     val message by vm.message.collectAsState()
     var confirm by remember { mutableStateOf(false) }
-    // Recurso nativo: selector de archivos del sistema (no requiere permisos).
-    val picker = rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-        if (uri != null) vm.importCatalog(uri)
-    }
     LaunchedEffect(Unit) { vm.refresh() }
 
     ScreenScaffold(
@@ -73,7 +67,6 @@ fun AdminPanelScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onCatalog:
                 AppCard(title = u.alias, status = u.role, statusColor = MaterialTheme.colorScheme.primary, lines = listOf(u.zone))
             }
             OutlineButton("Gestionar servicios y criterios", onClick = onCatalog)
-            PrimaryButton("Importar catálogo ficticio (archivo)", onClick = { picker.launch(arrayOf("*/*")) }, accent = true)
             OutlineButton("Cerrar sesión", onClick = { confirm = true })
         }
     }
@@ -150,6 +143,7 @@ fun AdminUserDetailScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onBac
     var confirm by remember { mutableStateOf(false) }
     var pendingNeed by remember { mutableStateOf<Long?>(null) }
     var pendingProfile by remember { mutableStateOf<ProviderProfileEntity?>(null) }
+    var deleteAccount by remember { mutableStateOf(false) }
 
     ScreenScaffold(title = "Perfil de usuario", onBack = onBack, actions = { LogoutAction { confirm = true } }, bottomBar = bar) { padding ->
         ScrollColumn(padding) {
@@ -183,10 +177,20 @@ fun AdminUserDetailScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onBac
                         OutlineButton("Eliminar petición", onClick = { pendingNeed = n.id })
                     }
                 }
+                OutlineButton("Eliminar cuenta", onClick = { deleteAccount = true })
             }
         }
     }
     MessageDialog(vm, message)
+    if (deleteAccount) {
+        ConfirmDialog(
+            "Eliminar cuenta",
+            "Se borrará la cuenta de ${user?.alias ?: ""} con todas sus peticiones, prestaciones e intereses. No se puede deshacer.",
+            "Eliminar",
+            { deleteAccount = false; user?.let { vm.deleteUser(it, onBack) } },
+            { deleteAccount = false }
+        )
+    }
     pendingNeed?.let { id ->
         ConfirmDialog(
             "Eliminar petición", "Se borrará la petición y los intereses asociados.", "Eliminar",

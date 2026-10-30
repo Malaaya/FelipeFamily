@@ -53,6 +53,9 @@ interface UserDao {
 
     @Query("SELECT COUNT(*) FROM users")
     suspend fun count(): Int
+
+    @Query("DELETE FROM users WHERE id = :id")
+    suspend fun deleteById(id: Long)
 }
 
 @Dao
@@ -68,12 +71,33 @@ interface SessionDao {
 }
 
 @Dao
+interface NotificationDao {
+    @Insert
+    suspend fun insert(n: NotificationEntity): Long
+
+    @Query("SELECT * FROM notifications WHERE userId = :userId AND seen = 0 ORDER BY id DESC")
+    suspend fun unseen(userId: Long): List<NotificationEntity>
+
+    @Query("UPDATE notifications SET seen = 1 WHERE userId = :userId")
+    suspend fun markAllSeen(userId: Long)
+
+    @Query("DELETE FROM notifications WHERE userId = :userId")
+    suspend fun deleteByUser(userId: Long)
+}
+
+@Dao
 interface NeedDao {
     @Insert
     suspend fun insert(need: NeedEntity): Long
 
     @Update
     suspend fun update(need: NeedEntity)
+
+    @Query("SELECT * FROM needs WHERE status IN (:statuses)")
+    suspend fun byStatuses(statuses: List<String>): List<NeedEntity>
+
+    @Query("DELETE FROM needs WHERE producerId = :producerId")
+    suspend fun deleteByProducer(producerId: Long)
 
     @Query("DELETE FROM needs WHERE id = :id")
     suspend fun deleteById(id: Long)
@@ -104,6 +128,9 @@ interface ProviderDao {
     @Query("UPDATE provider_profiles SET active = :active WHERE id = :id")
     suspend fun setActive(id: Long, active: Boolean)
 
+    @Query("DELETE FROM provider_profiles WHERE userId = :userId")
+    suspend fun deleteByUser(userId: Long)
+
     @Query("DELETE FROM provider_profiles WHERE id = :id")
     suspend fun delete(id: Long)
 
@@ -127,6 +154,9 @@ interface ServiceDao {
 interface InterestDao {
     @Insert
     suspend fun insert(interest: InterestEntity): Long
+
+    @Query("DELETE FROM interests WHERE needId IN (SELECT id FROM needs WHERE producerId = :producerId)")
+    suspend fun deleteByProducer(producerId: Long)
 
     @Query("DELETE FROM interests WHERE needId = :needId")
     suspend fun deleteByNeed(needId: Long)

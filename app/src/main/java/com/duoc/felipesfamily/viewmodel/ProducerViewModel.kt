@@ -7,6 +7,7 @@ import com.duoc.felipesfamily.data.AppDatabase
 import com.duoc.felipesfamily.data.InterestEntity
 import com.duoc.felipesfamily.data.NeedEntity
 import com.duoc.felipesfamily.data.NeedStatus
+import com.duoc.felipesfamily.data.NotificationEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.data.ServiceEntity
 import com.duoc.felipesfamily.data.UserEntity
@@ -80,13 +81,31 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
     private val _message = MutableStateFlow<String?>(null)
     val message: StateFlow<String?> = _message.asStateFlow()
 
+    private val _alerts = MutableStateFlow<List<NotificationEntity>>(emptyList())
+    /** Avisos sin leer: prestaciones nuevas que coinciden con sus necesidades. */
+    val alerts: StateFlow<List<NotificationEntity>> = _alerts.asStateFlow()
+
+    fun refreshAlerts() {
+        val u = user ?: return
+        viewModelScope.launch { _alerts.value = db.notificationDao().unseen(u.id) }
+    }
+
+    fun markAlertsSeen() {
+        val u = user ?: return
+        viewModelScope.launch {
+            db.notificationDao().markAllSeen(u.id)
+            _alerts.value = emptyList()
+        }
+    }
+
     fun setUser(u: UserEntity?) {
         user = u?.takeIf { it.role == Roles.PRODUCER }
         _needs.value = emptyList()
+        _alerts.value = emptyList()
         _selected.value = null
         _results.value = emptyList()
         _form.value = NeedForm()
-        if (user != null) viewModelScope.launch { loadCatalog(); loadNeeds() }
+        if (user != null) viewModelScope.launch { loadCatalog(); loadNeeds(); refreshAlerts() }
     }
 
     private suspend fun loadNeeds() {

@@ -72,6 +72,16 @@ data class ProviderProfileEntity(
     @ColumnInfo(defaultValue = "") val displayName: String = ""
 )
 
+/** Aviso para un usuario (p. ej. una prestación nueva compatible con la necesidad de un productor). */
+@Entity(tableName = "notifications", indices = [Index("userId")])
+data class NotificationEntity(
+    @PrimaryKey(autoGenerate = true) val id: Long = 0,
+    val userId: Long,
+    val title: String,
+    val message: String,
+    val seen: Boolean = false
+)
+
 /** Catálogo de servicios y criterios de matching (lo administra el admin). */
 @Entity(tableName = "services")
 data class ServiceEntity(

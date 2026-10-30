@@ -1,7 +1,6 @@
 package com.duoc.felipesfamily.viewmodel
 
 import android.app.Application
-import android.net.Uri
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.duoc.felipesfamily.data.AppDatabase
@@ -10,14 +9,11 @@ import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.data.ServiceEntity
 import com.duoc.felipesfamily.data.UserEntity
-import com.duoc.felipesfamily.util.CatalogImporter
 import com.duoc.felipesfamily.util.Validators
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 
 data class ServiceForm(
     val name: String = "",
@@ -87,6 +83,24 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch { reloadDetail() }
     }
 
+    /** Borra una cuenta (no admin) junto con sus peticiones, prestaciones e intereses. */
+    fun deleteUser(u: UserEntity, onDone: () -> Unit) {
+        if (u.role == Roles.ADMIN) return
+        viewModelScope.launch {
+            db.interestDao().deleteByProducer(u.id)
+            db.needDao().deleteByProducer(u.id)
+            db.interestDao().deleteByProvider(u.id)
+            db.providerDao().deleteByUser(u.id)
+            db.notificationDao().deleteByUser(u.id)
+            db.userDao().deleteById(u.id)
+            _detailUser.value = null
+            _detailNeeds.value = emptyList()
+            _detailProfile.value = emptyList()
+            refresh()
+            onDone()
+        }
+    }
+
     /** Borra una petición de un productor junto con los intereses asociados. */
     fun deleteNeed(id: Long) {
         viewModelScope.launch {
@@ -125,27 +139,6 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
             _form.value = ServiceForm()
             refresh()
             _message.value = "Servicio guardado en el catálogo."
-        }
-    }
-
-    /** Importa servicios desde un archivo JSON elegido por el usuario (recurso nativo: archivos). */
-    fun importCatalog(uri: Uri) {
-        viewModelScope.launch {
-            _message.value = try {
-                val items = withContext(Dispatchers.IO) { CatalogImporter.read(getApplication(), uri) }
-                var added = 0
-                for (item in items) {
-                    val exists = db.serviceDao().all().any { it.name.equals(item.name, ignoreCase = true) }
-                    if (item.name.isNotBlank() && item.radiusKm in 1..200 && !exists) {
-                        db.serviceDao().insert(ServiceEntity(name = item.name, criteria = item.criteria, radiusKm = item.radiusKm))
-                        added++
-                    }
-                }
-                refresh()
-                "Se importaron $added de ${items.size} servicios."
-            } catch (e: Exception) {
-                "No se pudo importar: el archivo no tiene el formato esperado."
-            }
         }
     }
 
