@@ -1,8 +1,10 @@
 package com.duoc.felipesfamily.ui.screens
 
+import androidx.compose.animation.Crossfade
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
@@ -111,21 +113,44 @@ fun AdminCatalogScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onLogout
     }
 }
 
+private const val TAB_USERS = "Usuarios"
+private const val TAB_SERVICES = "Prestaciones"
+
 @Composable
 fun AdminUsersScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onOpen: () -> Unit, onLogout: () -> Unit) {
     val users by vm.users.collectAsState()
+    val profiles by vm.profiles.collectAsState()
     var confirm by remember { mutableStateOf(false) }
+    var tab by rememberSaveable { mutableStateOf(TAB_USERS) }
     LaunchedEffect(Unit) { vm.refresh() }
 
     ScreenScaffold(title = "Usuarios", actions = { LogoutAction { confirm = true } }, bottomBar = bar) { padding ->
         ScrollColumn(padding) {
-            val list = users.filter { it.role != Roles.ADMIN }
-            if (list.isEmpty()) Text("Aún no hay usuarios registrados.")
-            list.forEach { u ->
-                AppCard(
-                    title = u.alias, status = u.role, statusColor = MaterialTheme.colorScheme.primary,
-                    lines = listOf(u.zone), onClick = { vm.openUser(u); onOpen() }
-                )
+            ToggleButtons(options = listOf(TAB_USERS, TAB_SERVICES), selected = tab, onSelect = { tab = it })
+            Crossfade(targetState = tab, label = "usersTab") { current ->
+                Column(verticalArrangement = Arrangement.spacedBy(14.dp)) {
+                    if (current == TAB_USERS) {
+                        val list = users.filter { it.role != Roles.ADMIN }
+                        if (list.isEmpty()) Text("Aún no hay usuarios registrados.")
+                        list.forEach { u ->
+                            AppCard(
+                                title = u.alias, status = u.role, statusColor = MaterialTheme.colorScheme.primary,
+                                lines = listOf(u.zone), onClick = { vm.openUser(u); onOpen() }
+                            )
+                        }
+                    } else {
+                        if (profiles.isEmpty()) Text("Aún no hay prestaciones creadas.")
+                        profiles.forEach { p ->
+                            AppCard(
+                                title = p.name,
+                                status = if (p.active) "Activa" else "Desactivada",
+                                statusColor = if (p.active) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                                lines = listOf("Prestador: ${p.ownerAlias}  ·  ${p.zone}", p.services, "Cobertura: ${p.coverageKm} km"),
+                                onClick = { vm.openProfileOwner(p.userId); onOpen() }
+                            )
+                        }
+                    }
+                }
             }
         }
     }

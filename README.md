@@ -25,4 +25,3 @@ Nicolás Robles
 1. Abrir el proyecto en Android Studio y esperar el Gradle Sync.
 2. Ejecutar en un emulador o dispositivo Android (minSdk 24).
 3. Cuentas demo (clave `123456`): `productor_demo01`, `prestador_demo01`, `admin_demo`.
-4. Para probar la importación, copiar `datos_prueba/catalogo_ficticio.json` al dispositivo.

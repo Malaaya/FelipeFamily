@@ -23,6 +23,18 @@ data class ProviderInfo(
     val rating: Double
 )
 
+/** Prestación con el alias de su dueño, para la lista del administrador (incluye las desactivadas). */
+data class ProfileSummary(
+    val profileId: Long,
+    val userId: Long,
+    val ownerAlias: String,
+    val name: String,
+    val zone: String,
+    val services: String,
+    val coverageKm: Int,
+    val active: Boolean
+)
+
 /** Resultado de unir interés + necesidad + productor. */
 data class InterestInfo(
     val interestId: Long,
@@ -124,6 +136,13 @@ interface ProviderDao {
             "FROM users u INNER JOIN provider_profiles p ON p.userId = u.id WHERE p.active = 1"
     )
     suspend fun all(): List<ProviderInfo>
+
+    @Query(
+        "SELECT p.id AS profileId, u.id AS userId, u.alias AS ownerAlias, COALESCE(NULLIF(p.displayName, ''), u.alias) AS name, u.zone AS zone, " +
+            "p.services AS services, p.coverageKm AS coverageKm, p.active AS active " +
+            "FROM provider_profiles p INNER JOIN users u ON u.id = p.userId ORDER BY p.id DESC"
+    )
+    suspend fun allSummaries(): List<ProfileSummary>
 
     @Query("UPDATE provider_profiles SET active = :active WHERE id = :id")
     suspend fun setActive(id: Long, active: Boolean)

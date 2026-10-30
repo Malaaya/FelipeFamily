@@ -5,6 +5,7 @@ import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import com.duoc.felipesfamily.data.AppDatabase
 import com.duoc.felipesfamily.data.NeedEntity
+import com.duoc.felipesfamily.data.ProfileSummary
 import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.data.ServiceEntity
@@ -39,6 +40,9 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
     private val _providers = MutableStateFlow(0)
     val providers: StateFlow<Int> = _providers.asStateFlow()
 
+    private val _profiles = MutableStateFlow<List<ProfileSummary>>(emptyList())
+    val profiles: StateFlow<List<ProfileSummary>> = _profiles.asStateFlow()
+
     private val _services = MutableStateFlow<List<ServiceEntity>>(emptyList())
     val services: StateFlow<List<ServiceEntity>> = _services.asStateFlow()
 
@@ -65,6 +69,7 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
         viewModelScope.launch {
             _users.value = db.userDao().all()
             _providers.value = db.providerDao().count()
+            _profiles.value = db.providerDao().allSummaries()
             _services.value = db.serviceDao().all()
         }
     }
@@ -74,6 +79,11 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
         val u = _detailUser.value ?: return
         _detailNeeds.value = if (u.role == Roles.PRODUCER) db.needDao().byProducer(u.id) else emptyList()
         _detailProfile.value = if (u.role == Roles.PROVIDER) db.providerDao().profiles(u.id) else emptyList()
+    }
+
+    /** Abre el perfil del dueño de una prestación (para verla o eliminarla desde el detalle). */
+    fun openProfileOwner(userId: Long) {
+        _users.value.firstOrNull { it.id == userId }?.let { openUser(it) }
     }
 
     fun openUser(u: UserEntity) {

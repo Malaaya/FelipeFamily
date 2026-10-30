@@ -2,6 +2,7 @@ package com.duoc.felipesfamily.ui
 
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -107,6 +108,25 @@ fun OutlineButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
         modifier = modifier.fillMaxWidth().height(48.dp),
         shape = RoundedCornerShape(50)
     ) { Text(text, fontWeight = FontWeight.SemiBold) }
+}
+
+/** Alternador de dos o más opciones: la elegida se ve rellena y las otras con borde. */
+@Composable
+fun ToggleButtons(options: List<String>, selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
+    Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        options.forEach { option ->
+            val itemModifier = Modifier.weight(1f).height(44.dp)
+            if (option == selected) {
+                Button(onClick = { onSelect(option) }, modifier = itemModifier, shape = RoundedCornerShape(50)) {
+                    Text(option, fontWeight = FontWeight.SemiBold)
+                }
+            } else {
+                OutlinedButton(onClick = { onSelect(option) }, modifier = itemModifier, shape = RoundedCornerShape(50)) {
+                    Text(option)
+                }
+            }
+        }
+    }
 }
 
 /** Estructura común de pantalla: barra superior verde + contenido. */
