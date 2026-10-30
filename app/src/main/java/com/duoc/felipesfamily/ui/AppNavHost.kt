@@ -176,7 +176,11 @@ fun AppNavHost(
             )
         }
         composable(Routes.A_CATALOG) {
-            AdminCatalogScreen(adminVm, bar = { AppBottomBar(adminItems, Routes.A_CATALOG, adminTab) })
+            AdminCatalogScreen(
+                adminVm,
+                bar = { AppBottomBar(adminItems, Routes.A_CATALOG, adminTab) },
+                onLogout = vm::logout
+            )
         }
     }
 

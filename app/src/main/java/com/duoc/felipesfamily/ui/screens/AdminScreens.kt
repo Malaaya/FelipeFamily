@@ -7,6 +7,7 @@ import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.dp
@@ -21,6 +22,12 @@ private fun StatCard(value: String, label: String, modifier: Modifier = Modifier
             Text(label, fontSize = 12.sp, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
     }
+}
+
+/** Botón "Salir" de la barra superior del admin (abre el diálogo de confirmación). */
+@Composable
+private fun LogoutAction(onClick: () -> Unit) {
+    TextButton(onClick = onClick) { Text("Salir", color = Color.White, fontWeight = FontWeight.SemiBold) }
 }
 
 @Composable
@@ -48,7 +55,11 @@ fun AdminPanelScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onCatalog:
     }
     LaunchedEffect(Unit) { vm.refresh() }
 
-    ScreenScaffold(title = "Panel administrador", bottomBar = bar) { padding ->
+    ScreenScaffold(
+        title = "Panel administrador",
+        actions = { LogoutAction { confirm = true } },
+        bottomBar = bar
+    ) { padding ->
         ScrollColumn(padding) {
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 StatCard("${users.size}", "Usuarios", Modifier.weight(1f))
@@ -71,13 +82,18 @@ fun AdminPanelScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onCatalog:
 }
 
 @Composable
-fun AdminCatalogScreen(vm: AdminViewModel, bar: @Composable () -> Unit) {
+fun AdminCatalogScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onLogout: () -> Unit) {
     val services by vm.services.collectAsState()
     val f by vm.form.collectAsState()
     val message by vm.message.collectAsState()
+    var confirm by remember { mutableStateOf(false) }
     LaunchedEffect(Unit) { vm.refresh() }
 
-    ScreenScaffold(title = "Catálogo y criterios", bottomBar = bar) { padding ->
+    ScreenScaffold(
+        title = "Catálogo y criterios",
+        actions = { LogoutAction { confirm = true } },
+        bottomBar = bar
+    ) { padding ->
         ScrollColumn(padding) {
             services.forEach { s ->
                 AppCard(title = s.name, lines = listOf("Criterios: ${s.criteria}", "Radio de cobertura: ${s.radiusKm} km"))
@@ -95,4 +111,7 @@ fun AdminCatalogScreen(vm: AdminViewModel, bar: @Composable () -> Unit) {
         }
     }
     MessageDialog(vm, message)
+    if (confirm) {
+        ConfirmDialog("Cerrar sesión", "¿Seguro que quieres salir?", "Salir", { confirm = false; onLogout() }, { confirm = false })
+    }
 }
