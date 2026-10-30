@@ -162,6 +162,7 @@ fun AdminUserDetailScreen(vm: AdminViewModel, bar: @Composable () -> Unit, onBac
                     } else {
                         InfoCard(
                             listOf(
+                                "Nombre" to p.displayName.ifBlank { "—" },
                                 "Servicios" to p.services,
                                 "Estado" to if (p.active) "Activa" else "Desactivada",
                                 "Cobertura" to "${p.coverageKm} km",

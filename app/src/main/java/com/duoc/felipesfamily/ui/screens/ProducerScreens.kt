@@ -5,6 +5,11 @@ import android.os.Build
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
+import com.duoc.felipesfamily.util.MatchResult
+import androidx.compose.ui.draw.clip
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -92,10 +97,90 @@ fun NewNeedScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
     }
 }
 
+private fun initials(name: String): String =
+    name.trim().split(" ").filter { it.isNotBlank() }.take(2).joinToString("") { it.first().uppercase() }.ifBlank { "?" }
+
+@Composable
+private fun CriteriaChip(text: String, ok: Boolean) {
+    Surface(
+        shape = RoundedCornerShape(50),
+        color = if (ok) MaterialTheme.colorScheme.primaryContainer else MaterialTheme.colorScheme.surfaceVariant
+    ) {
+        Text(
+            (if (ok) "✓ " else "✗ ") + text,
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+            fontSize = 12.sp,
+            color = if (ok) MaterialTheme.colorScheme.onPrimaryContainer else MaterialTheme.colorScheme.onSurfaceVariant
+        )
+    }
+}
+
+@OptIn(ExperimentalLayoutApi::class)
+@Composable
+private fun MatchCard(r: MatchResult, onDetail: () -> Unit, onCompare: () -> Unit) {
+    val p = r.provider
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(16.dp),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
+    ) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                Box(
+                    Modifier.size(48.dp).clip(RoundedCornerShape(12.dp)).background(MaterialTheme.colorScheme.primary),
+                    contentAlignment = Alignment.Center
+                ) {
+                    Text(initials(p.name), color = MaterialTheme.colorScheme.onPrimary, fontWeight = FontWeight.Bold)
+                }
+                Column(Modifier.weight(1f)) {
+                    Text(p.name, fontWeight = FontWeight.Bold, maxLines = 2)
+                    Text(
+                        "${p.experienceYears} años · ★ ${"%.1f".format(p.rating)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
+                    )
+                }
+                Text(
+                    "${r.score}%", fontSize = 26.sp, fontWeight = FontWeight.Bold,
+                    color = if (r.score >= 80) SuccessGreen else AccentOrange
+                )
+            }
+            LinearProgressIndicator(
+                progress = { r.score / 100f },
+                modifier = Modifier.fillMaxWidth().height(6.dp).clip(RoundedCornerShape(50)),
+                color = if (r.score >= 80) SuccessGreen else AccentOrange
+            )
+            FlowRow(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                CriteriaChip(if (r.nearZone) "Zona cercana" else "Zona", r.sameZone || r.nearZone)
+                CriteriaChip("Servicio", true)
+                CriteriaChip("Capacidad", r.capacityOk)
+                CriteriaChip("Disponible", r.available)
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                OutlinedButton(onClick = onDetail, modifier = Modifier.weight(1f)) { Text("Ver detalle") }
+                FilledTonalButton(onClick = onCompare, modifier = Modifier.weight(1f)) { Text("Comparar") }
+            }
+        }
+    }
+}
+
 @Composable
 fun ResultsScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: () -> Unit, onCompare: () -> Unit) {
     val need by vm.selected.collectAsState()
     val results by vm.results.collectAsState()
+    var filter by remember { mutableIntStateOf(0) }
+    var detail by remember { mutableStateOf<MatchResult?>(null) }
+
+    val labels = listOf("Todos", "Mi zona", "Disponibles en mi ventana", "Capacidad suficiente")
+    fun matches(i: Int, r: MatchResult): Boolean = when (i) {
+        1 -> r.sameZone || r.nearZone
+        2 -> r.available
+        3 -> r.capacityOk
+        else -> true
+    }
+    val shown = results.filter { matches(filter, it) }
+
     ScreenScaffold(title = "Resultados de matching", onBack = onBack, bottomBar = bar) { padding ->
         ScrollColumn(padding) {
             need?.let {
@@ -105,33 +190,58 @@ fun ResultsScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
             }
-            need?.let { n ->
-                ZoneMap(
-                    listOf(MapPoint("Tu necesidad", "${n.service} · ${n.zone}", n.zone, isNeed = true)) +
-                        results.map { r ->
-                            MapPoint(r.provider.alias, "${r.score}% compatible · cobertura ${r.provider.coverageKm} km", r.provider.zone, coverageKm = r.provider.coverageKm)
-                        }
-                )
+            Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                labels.forEachIndexed { i, label ->
+                    FilterChip(
+                        selected = filter == i,
+                        onClick = { filter = i },
+                        label = { Text("$label (${results.count { matches(i, it) }})") }
+                    )
+                }
             }
             if (results.isEmpty()) {
                 Text("No hay prestadores compatibles con esta necesidad por ahora.")
+            } else if (shown.isEmpty()) {
+                Text("Ningún prestador cumple este filtro. Prueba con otro.")
             }
-            results.forEachIndexed { index, r ->
-                AppCard(
-                    title = r.provider.alias,
-                    status = "${r.score}% compatible",
-                    statusColor = if (r.score >= 80) SuccessGreen else AccentOrange,
-                    lines = listOf(
-                        "${r.provider.services}  ·  Cobertura ${r.provider.coverageKm} km",
-                        "Disponible ${r.provider.availability}"
-                    ),
-                    onClick = { vm.choose(index); onCompare() }
-                )
+            shown.forEach { r ->
+                val index = results.indexOf(r)
+                MatchCard(r, onDetail = { detail = r }, onCompare = { vm.choose(index); onCompare() })
             }
-            if (results.isNotEmpty()) {
-                PrimaryButton("Comparar prestadores", onClick = { vm.choose(0); onCompare() }, accent = true)
+            need?.let { n ->
+                if (shown.isNotEmpty()) {
+                    Text("Mapa de cobertura", fontWeight = FontWeight.SemiBold)
+                    ZoneMap(
+                        listOf(MapPoint("Tu necesidad", "${n.service} · ${n.zone}", n.zone, isNeed = true)) +
+                            shown.map { r ->
+                                MapPoint(r.provider.name, "${r.score}% compatible · cobertura ${r.provider.coverageKm} km", r.provider.zone, coverageKm = r.provider.coverageKm)
+                            }
+                    )
+                }
             }
         }
+    }
+
+    detail?.let { r ->
+        val p = r.provider
+        AlertDialog(
+            onDismissRequest = { detail = null },
+            title = { Text(p.name) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    Text("Compatibilidad: ${r.score}%")
+                    Text("Servicios: ${p.services}")
+                    Text("Zona: ${p.zone} · Cobertura ${p.coverageKm} km")
+                    Text("Capacidad: ${p.capacityHaDay} ha por día")
+                    Text("Experiencia: ${p.experienceYears} años · ★ ${"%.1f".format(p.rating)}")
+                    Text("Disponible: ${p.availability}")
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { val i = results.indexOf(r); detail = null; vm.choose(i); onCompare() }) { Text("Comparar") }
+            },
+            dismissButton = { TextButton(onClick = { detail = null }) { Text("Cerrar") } }
+        )
     }
 }
 
@@ -153,8 +263,6 @@ private fun TableRow(cells: List<String>, header: Boolean = false) {
         }
     }
 }
-
-private fun shortName(alias: String) = alias.removePrefix("prestador_")
 
 @Composable
 fun CompareScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: () -> Unit, onDone: () -> Unit) {
@@ -180,7 +288,7 @@ fun CompareScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
                     border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant)
                 ) {
                     Column(Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-                        TableRow(listOf("") + shown.map { shortName(it.provider.alias) }, header = true)
+                        TableRow(listOf("") + shown.map { it.provider.name }, header = true)
                         TableRow(listOf("Compatib.") + shown.map { "${it.score}%" })
                         TableRow(listOf("Servicio") + shown.map { it.provider.services.substringBefore(',') })
                         TableRow(listOf("Cobertura") + shown.map { "${it.provider.coverageKm} km" })
@@ -192,9 +300,9 @@ fun CompareScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
                 }
                 ChoiceChips(
                     label = "Prestador a contactar",
-                    options = shown.map { shortName(it.provider.alias) },
-                    selected = shortName(shown.getOrNull(chosen)?.provider?.alias ?: ""),
-                    onSelect = { name -> vm.choose(shown.indexOfFirst { shortName(it.provider.alias) == name }) }
+                    options = shown.map { it.provider.name },
+                    selected = shown.getOrNull(chosen)?.provider?.name ?: "",
+                    onSelect = { name -> vm.choose(shown.indexOfFirst { it.provider.name == name }) }
                 )
                 Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceBetween, verticalAlignment = Alignment.CenterVertically) {
                     Text("Notificarme cuando respondan")
@@ -237,18 +345,21 @@ fun CompareScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
 @Composable
 fun ProducerProfileScreen(user: UserEntity?, bar: @Composable () -> Unit, onLogout: () -> Unit) {
     var confirm by remember { mutableStateOf(false) }
+    var help by remember { mutableStateOf(false) }
     ScreenScaffold(title = "Perfil", bottomBar = bar) { padding ->
         ScrollColumn(padding) {
             InfoCard(
                 listOf(
-                    "Alias ficticio" to (user?.alias ?: ""),
+                    "Alias" to (user?.alias ?: ""),
                     "Tipo de perfil" to "Productor / agricultor",
                     "Zona referencial" to (user?.zone ?: "")
                 )
             )
+            OutlineButton("Ayuda y soporte", onClick = { help = true })
             OutlineButton("Cerrar sesión", onClick = { confirm = true })
         }
     }
+    if (help) SupportDialog(onDismiss = { help = false })
     if (confirm) {
         ConfirmDialog("Cerrar sesión", "¿Seguro que quieres salir?", "Salir", { confirm = false; onLogout() }, { confirm = false })
     }

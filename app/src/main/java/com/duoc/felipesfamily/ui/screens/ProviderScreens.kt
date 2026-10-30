@@ -74,8 +74,13 @@ fun ProviderProfileScreen(vm: ProviderViewModel, bar: @Composable () -> Unit, on
     val active by vm.active.collectAsState()
     var confirm by remember { mutableStateOf(false) }
     var confirmDelete by remember { mutableStateOf(false) }
+    var help by remember { mutableStateOf(false) }
     ScreenScaffold(title = "Mi perfil de servicios", bottomBar = bar) { padding ->
         ScrollColumn(padding) {
+            AppTextField(
+                label = "Nombre de tu servicio (opcional)", value = f.name, onValueChange = { vm.onFormChange(name = it) },
+                placeholder = "Ej: Drones Valle Sur", error = f.nameError, valid = f.submitted && f.nameError == null
+            )
             AppTextField(
                 label = "Servicios ofrecidos", value = f.services, onValueChange = { vm.onFormChange(services = it) },
                 placeholder = "Ej: Fumigación con dron", error = f.servicesError, valid = f.submitted && f.servicesError == null
@@ -106,6 +111,7 @@ fun ProviderProfileScreen(vm: ProviderViewModel, bar: @Composable () -> Unit, on
                 OutlineButton(if (active) "Desactivar prestación" else "Activar prestación", onClick = vm::toggleActive)
                 OutlineButton("Eliminar prestación", onClick = { confirmDelete = true })
             }
+            OutlineButton("Ayuda y soporte", onClick = { help = true })
             OutlineButton("Cerrar sesión", onClick = { confirm = true })
         }
     }
@@ -117,6 +123,7 @@ fun ProviderProfileScreen(vm: ProviderViewModel, bar: @Composable () -> Unit, on
             confirmButton = { TextButton(onClick = vm::dismissSaved) { Text("Listo") } }
         )
     }
+    if (help) SupportDialog(onDismiss = { help = false })
     if (confirmDelete) {
         ConfirmDialog(
             "Eliminar prestación", "Se borrará tu prestación y los intereses recibidos. Podrás crear otra después.", "Eliminar",

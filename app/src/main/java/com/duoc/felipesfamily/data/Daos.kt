@@ -10,6 +10,8 @@ import androidx.room.Update
 data class ProviderInfo(
     val userId: Long,
     val alias: String,
+    /** Nombre amigable de la prestación (o el alias si no tiene). */
+    val name: String,
     val zone: String,
     val services: String,
     val coverageKm: Int,
@@ -87,7 +89,7 @@ interface ProviderDao {
     suspend fun profile(userId: Long): ProviderProfileEntity?
 
     @Query(
-        "SELECT u.id AS userId, u.alias AS alias, u.zone AS zone, p.services AS services, " +
+        "SELECT u.id AS userId, u.alias AS alias, COALESCE(NULLIF(p.displayName, ''), u.alias) AS name, u.zone AS zone, p.services AS services, " +
             "p.coverageKm AS coverageKm, p.capacityHaDay AS capacityHaDay, " +
             "p.experienceYears AS experienceYears, p.availability AS availability, p.rating AS rating " +
             "FROM users u INNER JOIN provider_profiles p ON p.userId = u.id WHERE p.active = 1"

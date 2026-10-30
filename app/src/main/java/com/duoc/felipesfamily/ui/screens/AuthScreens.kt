@@ -70,11 +70,6 @@ fun LoginScreen(vm: AuthViewModel, onRegister: () -> Unit, onRecover: () -> Unit
                 Text("Recuperar contraseña")
             }
             OutlineButton("Crear una cuenta", onClick = onRegister)
-            Text(
-                "Cuentas demo (clave 123456): productor_demo01 · prestador_demo01 · admin_demo",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant
-            )
         }
     }
 }

@@ -17,6 +17,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 data class ProviderForm(
+    val name: String = "",
+    val nameError: String? = null,
     val services: String = "",
     val coverage: String = "",
     val capacity: String = "",
@@ -32,6 +34,7 @@ data class ProviderForm(
 
 private fun ProviderForm.validated() = copy(
     submitted = true,
+    nameError = if (name.trim().length > 30) "Máximo 30 caracteres" else null,
     servicesError = Validators.required(services, "Indica al menos un servicio"),
     coverageError = Validators.intInRange(coverage, 1, 500),
     capacityError = Validators.intInRange(capacity, 1, 1000),
@@ -40,7 +43,7 @@ private fun ProviderForm.validated() = copy(
 )
 
 private val ProviderForm.hasErrors
-    get() = servicesError != null || coverageError != null || capacityError != null ||
+    get() = nameError != null || servicesError != null || coverageError != null || capacityError != null ||
         experienceError != null || availabilityError != null
 
 /** Flujo del prestador: mantener su perfil y responder a los productores interesados. */
@@ -85,7 +88,7 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
                 _hasProfile.value = true
                 _active.value = p.active
                 _form.value = ProviderForm(
-                    services = p.services, coverage = p.coverageKm.toString(),
+                    name = p.displayName, services = p.services, coverage = p.coverageKm.toString(),
                     capacity = p.capacityHaDay.toString(), experience = p.experienceYears.toString(),
                     availability = p.availability
                 )
@@ -104,6 +107,7 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun onFormChange(
+        name: String = _form.value.name,
         services: String = _form.value.services,
         coverage: String = _form.value.coverage,
         capacity: String = _form.value.capacity,
@@ -111,7 +115,7 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
         availability: String = _form.value.availability
     ) {
         val next = _form.value.copy(
-            services = services, coverage = coverage, capacity = capacity,
+            name = name, services = services, coverage = coverage, capacity = capacity,
             experience = experience, availability = availability
         )
         _form.value = if (next.submitted) next.validated() else next
@@ -128,7 +132,7 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
                     userId = u.id, services = f.services.trim(),
                     coverageKm = f.coverage.trim().toInt(), capacityHaDay = f.capacity.trim().toInt(),
                     experienceYears = f.experience.trim().toInt(), availability = f.availability.trim(),
-                    rating = rating, active = _active.value
+                    rating = rating, active = _active.value, displayName = f.name.trim()
                 )
             )
             _hasProfile.value = true

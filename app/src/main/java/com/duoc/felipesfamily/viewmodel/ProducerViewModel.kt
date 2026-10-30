@@ -180,7 +180,7 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
             db.needDao().update(updated)
             _selected.value = updated
             loadNeeds()
-            val text = "Enviamos tu interés a ${match.provider.alias} (simulado)."
+            val text = "Enviamos tu interés a ${match.provider.name} (simulado)."
             _message.value = text
             if (_notify.value) NotificationHelper.show(getApplication(), "Interés enviado", text)
         }

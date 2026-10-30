@@ -26,7 +26,12 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
@@ -155,4 +160,37 @@ fun ConfirmDialog(
         confirmButton = { TextButton(onClick = onConfirm) { Text(confirmText) } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
     )
+}
+
+/** Centro de ayuda simulado: el usuario escribe un mensaje y "se envía" a soporte (no sale de la app). */
+@Composable
+fun SupportDialog(onDismiss: () -> Unit) {
+    var message by remember { mutableStateOf("") }
+    var error by remember { mutableStateOf<String?>(null) }
+    var sent by remember { mutableStateOf(false) }
+    if (sent) {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Mensaje enviado") },
+            text = { Text("Recibimos tu mensaje en el centro de ayuda (simulado). En este MVP no hay respuesta real de soporte.") },
+            confirmButton = { TextButton(onClick = onDismiss) { Text("Entendido") } }
+        )
+    } else {
+        AlertDialog(
+            onDismissRequest = onDismiss,
+            title = { Text("Ayuda y soporte") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Cuéntanos tu problema o consulta y te contactaremos.")
+                    AppTextField(label = "Tu mensaje", value = message, onValueChange = { message = it; error = null }, error = error)
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    if (message.trim().length < 10) error = "Escribe al menos 10 caracteres" else sent = true
+                }) { Text("Enviar") }
+            },
+            dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
+        )
+    }
 }

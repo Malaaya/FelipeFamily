@@ -66,7 +66,9 @@ data class ProviderProfileEntity(
     val availability: String,
     val rating: Double = 4.5,
     /** false = prestación desactivada: no aparece en el matching. */
-    @ColumnInfo(defaultValue = "1") val active: Boolean = true
+    @ColumnInfo(defaultValue = "1") val active: Boolean = true,
+    /** Nombre comercial de la prestación (si está vacío se usa el alias). */
+    @ColumnInfo(defaultValue = "") val displayName: String = ""
 )
 
 /** Catálogo de servicios y criterios de matching (lo administra el admin). */
