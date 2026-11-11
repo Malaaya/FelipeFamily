@@ -3,10 +3,9 @@ package com.duoc.felipesfamily.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.duoc.felipesfamily.data.AppDatabase
 import com.duoc.felipesfamily.data.Roles
-import com.duoc.felipesfamily.data.SessionEntity
 import com.duoc.felipesfamily.data.UserEntity
+import com.duoc.felipesfamily.repository.AuthRepository
 import com.duoc.felipesfamily.util.Validators
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -64,7 +63,7 @@ private val RegisterState.hasErrors
 
 /** Maneja login, registro, recuperación y sesión. La UI solo observa estos estados. */
 class AuthViewModel(app: Application) : AndroidViewModel(app) {
-    private val db = AppDatabase.get(app)
+    private val authRepository = AuthRepository(app)
 
     private val _login = MutableStateFlow(LoginState())
     val login: StateFlow<LoginState> = _login.asStateFlow()
@@ -84,8 +83,8 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
 
     init {
         viewModelScope.launch {
-            db.seedIfEmpty()
-            db.sessionDao().get()?.let { _user.value = db.userDao().byId(it.userId) }
+            authRepository.seedIfEmpty()
+            _user.value = authRepository.userForSavedSession()
             _ready.value = true
         }
     }
@@ -101,11 +100,11 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         _login.value = state
         if (state.hasErrors) return
         viewModelScope.launch {
-            val found = db.userDao().byAlias(state.alias.trim())
+            val found = authRepository.findUserByAlias(state.alias.trim())
             if (found == null || found.passwordHash != Validators.hash(state.password)) {
                 _login.update { it.copy(formError = "Usuario o contraseña incorrectos") }
             } else {
-                db.sessionDao().save(SessionEntity(userId = found.id))
+                authRepository.saveSession(found.id)
                 _user.value = found
                 _login.value = LoginState()
             }
@@ -114,7 +113,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
 
     fun logout() {
         viewModelScope.launch {
-            db.sessionDao().clear()
+            authRepository.clearSession()
             _user.value = null
         }
     }
@@ -136,11 +135,11 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
         _register.value = state
         if (state.hasErrors) return
         viewModelScope.launch {
-            if (db.userDao().byAlias(state.alias.trim()) != null) {
+            if (authRepository.findUserByAlias(state.alias.trim()) != null) {
                 _register.update { it.copy(aliasError = "Ese alias ya está en uso") }
                 return@launch
             }
-            db.userDao().insert(
+            authRepository.createUser(
                 UserEntity(
                     alias = state.alias.trim(),
                     passwordHash = Validators.hash(state.password),
@@ -169,7 +168,7 @@ class AuthViewModel(app: Application) : AndroidViewModel(app) {
             return
         }
         viewModelScope.launch {
-            if (db.userDao().byAlias(alias) == null) {
+            if (authRepository.findUserByAlias(alias) == null) {
                 _recover.update { it.copy(error = "No existe ese usuario") }
             } else {
                 _recover.update { it.copy(sent = true) }

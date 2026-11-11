@@ -3,14 +3,13 @@ package com.duoc.felipesfamily.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.duoc.felipesfamily.data.AppDatabase
-import com.duoc.felipesfamily.data.InterestEntity
 import com.duoc.felipesfamily.data.NeedEntity
 import com.duoc.felipesfamily.data.NeedStatus
 import com.duoc.felipesfamily.data.NotificationEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.data.ServiceEntity
 import com.duoc.felipesfamily.data.UserEntity
+import com.duoc.felipesfamily.repository.ProducerRepository
 import com.duoc.felipesfamily.util.Matching
 import com.duoc.felipesfamily.util.MatchResult
 import com.duoc.felipesfamily.util.NotificationHelper
@@ -51,7 +50,7 @@ private val NeedForm.hasErrors
 
 /** Flujo del productor: registrar necesidad, ver matching, comparar y manifestar interés. */
 class ProducerViewModel(app: Application) : AndroidViewModel(app) {
-    private val db = AppDatabase.get(app)
+    private val producerRepository = ProducerRepository(app)
     private var user: UserEntity? = null
 
     private val _needs = MutableStateFlow<List<NeedEntity>>(emptyList())
@@ -87,13 +86,13 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refreshAlerts() {
         val u = user ?: return
-        viewModelScope.launch { _alerts.value = db.notificationDao().unseen(u.id) }
+        viewModelScope.launch { _alerts.value = producerRepository.unseenNotifications(u.id) }
     }
 
     fun markAlertsSeen() {
         val u = user ?: return
         viewModelScope.launch {
-            db.notificationDao().markAllSeen(u.id)
+            producerRepository.markNotificationsSeen(u.id)
             _alerts.value = emptyList()
         }
     }
@@ -110,11 +109,11 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun loadNeeds() {
         val u = user ?: return
-        _needs.value = db.needDao().byProducer(u.id)
+        _needs.value = producerRepository.needsForProducer(u.id)
     }
 
     private suspend fun loadCatalog() {
-        val list = db.serviceDao().all()
+        val list = producerRepository.allServices()
         _services.value = list
         if (_form.value.service.isBlank() && list.isNotEmpty()) {
             _form.update { it.copy(service = list.first().name) }
@@ -153,7 +152,7 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
                 surfaceHa = Validators.parseSurface(f.surface) ?: 0.0,
                 zone = f.zone.trim(), period = f.period.trim(), product = f.product
             )
-            val id = db.needDao().insert(need)
+            val id = producerRepository.insertNeed(need)
             select(need.copy(id = id))
             _form.value = NeedForm(service = f.service)
             _confirming.value = false
@@ -163,11 +162,11 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     private suspend fun select(need: NeedEntity) {
-        val found = Matching.compute(need, db.providerDao().all())
+        val found = Matching.compute(need, producerRepository.allActiveProviders())
         var current = need
         if (found.isNotEmpty() && need.status == NeedStatus.NEW) {
             current = need.copy(status = NeedStatus.MATCHED)
-            db.needDao().update(current)
+            producerRepository.updateNeed(current)
         }
         _selected.value = current
         _results.value = found
@@ -194,9 +193,9 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
         val need = _selected.value ?: return
         val match = _results.value.getOrNull(_chosen.value) ?: return
         viewModelScope.launch {
-            db.interestDao().insert(InterestEntity(needId = need.id, providerId = match.provider.userId))
+            producerRepository.sendInterest(need.id, match.provider.userId)
             val updated = need.copy(status = NeedStatus.INTEREST)
-            db.needDao().update(updated)
+            producerRepository.updateNeed(updated)
             _selected.value = updated
             loadNeeds()
             val text = "Enviamos tu interés a ${match.provider.name} (simulado)."

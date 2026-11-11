@@ -3,13 +3,13 @@ package com.duoc.felipesfamily.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.duoc.felipesfamily.data.AppDatabase
 import com.duoc.felipesfamily.data.NeedEntity
 import com.duoc.felipesfamily.data.ProfileSummary
 import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.data.ServiceEntity
 import com.duoc.felipesfamily.data.UserEntity
+import com.duoc.felipesfamily.repository.AdminRepository
 import com.duoc.felipesfamily.util.Validators
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -32,7 +32,7 @@ private fun ServiceForm.validated() = copy(
 
 /** Flujo del administrador: ver datos ficticios y gestionar el catálogo de servicios. */
 class AdminViewModel(app: Application) : AndroidViewModel(app) {
-    private val db = AppDatabase.get(app)
+    private val adminRepository = AdminRepository(app)
 
     private val _users = MutableStateFlow<List<UserEntity>>(emptyList())
     val users: StateFlow<List<UserEntity>> = _users.asStateFlow()
@@ -67,18 +67,18 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
 
     fun refresh() {
         viewModelScope.launch {
-            _users.value = db.userDao().all()
-            _providers.value = db.providerDao().count()
-            _profiles.value = db.providerDao().allSummaries()
-            _services.value = db.serviceDao().all()
+            _users.value = adminRepository.allUsers()
+            _providers.value = adminRepository.providerCount()
+            _profiles.value = adminRepository.allProviderSummaries()
+            _services.value = adminRepository.allServices()
         }
     }
 
     // ---------- Perfiles de usuarios ----------
     private suspend fun reloadDetail() {
         val u = _detailUser.value ?: return
-        _detailNeeds.value = if (u.role == Roles.PRODUCER) db.needDao().byProducer(u.id) else emptyList()
-        _detailProfile.value = if (u.role == Roles.PROVIDER) db.providerDao().profiles(u.id) else emptyList()
+        _detailNeeds.value = if (u.role == Roles.PRODUCER) adminRepository.needsForProducer(u.id) else emptyList()
+        _detailProfile.value = if (u.role == Roles.PROVIDER) adminRepository.profilesForProvider(u.id) else emptyList()
     }
 
     /** Abre el perfil del dueño de una prestación (para verla o eliminarla desde el detalle). */
@@ -97,12 +97,7 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteUser(u: UserEntity, onDone: () -> Unit) {
         if (u.role == Roles.ADMIN) return
         viewModelScope.launch {
-            db.interestDao().deleteByProducer(u.id)
-            db.needDao().deleteByProducer(u.id)
-            db.interestDao().deleteByProvider(u.id)
-            db.providerDao().deleteByUser(u.id)
-            db.notificationDao().deleteByUser(u.id)
-            db.userDao().deleteById(u.id)
+            adminRepository.deleteUser(u.id)
             _detailUser.value = null
             _detailNeeds.value = emptyList()
             _detailProfile.value = emptyList()
@@ -114,8 +109,7 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
     /** Borra una petición de un productor junto con los intereses asociados. */
     fun deleteNeed(id: Long) {
         viewModelScope.launch {
-            db.interestDao().deleteByNeed(id)
-            db.needDao().deleteById(id)
+            adminRepository.deleteNeed(id)
             reloadDetail()
             refresh()
             _message.value = "Petición eliminada."
@@ -125,8 +119,7 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
     /** Borra una prestación; si era la última del prestador, borra también sus intereses. */
     fun deleteProfile(profile: ProviderProfileEntity) {
         viewModelScope.launch {
-            db.providerDao().delete(profile.id)
-            if (db.providerDao().countByUser(profile.userId) == 0) db.interestDao().deleteByProvider(profile.userId)
+            adminRepository.deleteProfile(profile)
             reloadDetail()
             refresh()
             _message.value = "Prestación eliminada."
@@ -143,7 +136,7 @@ class AdminViewModel(app: Application) : AndroidViewModel(app) {
         _form.value = f
         if (f.nameError != null || f.radiusError != null) return
         viewModelScope.launch {
-            db.serviceDao().insert(
+            adminRepository.insertService(
                 ServiceEntity(name = f.name.trim(), criteria = "zona, cultivo, capacidad, disponibilidad", radiusKm = f.radius.trim().toInt())
             )
             _form.value = ServiceForm()

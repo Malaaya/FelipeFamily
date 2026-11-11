@@ -29,44 +29,44 @@ object Routes {
     const val LOGIN = "login"
     const val REGISTER = "register"
     const val RECOVER = "recover"
-    const val P_NEEDS = "producer_needs"
-    const val P_NEW = "producer_new"
-    const val P_RESULTS = "producer_results"
-    const val P_COMPARE = "producer_compare"
-    const val P_PROFILE = "producer_profile"
-    const val V_INTERESTS = "provider_interests"
-    const val V_DETAIL = "provider_detail"
-    const val V_SERVICES = "provider_services"
-    const val V_FORM = "provider_form"
-    const val V_PROFILE = "provider_profile"
-    const val A_PANEL = "admin_panel"
-    const val A_CATALOG = "admin_catalog"
-    const val A_USERS = "admin_users"
-    const val A_USER_DETAIL = "admin_user_detail"
+    const val PRODUCER_NEEDS = "producer_needs"
+    const val PRODUCER_NEW_NEED = "producer_new"
+    const val PRODUCER_MATCH_RESULTS = "producer_results"
+    const val PRODUCER_PROVIDER_COMPARISON = "producer_compare"
+    const val PRODUCER_PROFILE = "producer_profile"
+    const val PROVIDER_INTERESTS = "provider_interests"
+    const val PROVIDER_INTEREST_DETAIL = "provider_detail"
+    const val PROVIDER_SERVICES = "provider_services"
+    const val PROVIDER_SERVICE_FORM = "provider_form"
+    const val PROVIDER_PROFILE = "provider_profile"
+    const val ADMIN_PANEL = "admin_panel"
+    const val ADMIN_SERVICE_CATALOG = "admin_catalog"
+    const val ADMIN_USERS = "admin_users"
+    const val ADMIN_USER_DETAIL = "admin_user_detail"
 
     val authRoutes = listOf(LOGIN, REGISTER, RECOVER)
 
     fun homeFor(role: String?): String? = when (role) {
-        Roles.PRODUCER -> P_NEEDS
-        Roles.PROVIDER -> V_INTERESTS
-        Roles.ADMIN -> A_PANEL
+        Roles.PRODUCER -> PRODUCER_NEEDS
+        Roles.PROVIDER -> PROVIDER_INTERESTS
+        Roles.ADMIN -> ADMIN_PANEL
         else -> null
     }
 }
 
 private val producerItems = listOf(
-    NavItem(Routes.P_NEEDS, "Necesidades", Icons.Filled.Home),
-    NavItem(Routes.P_PROFILE, "Perfil", Icons.Filled.Person)
+    NavItem(Routes.PRODUCER_NEEDS, "Necesidades", Icons.Filled.Home),
+    NavItem(Routes.PRODUCER_PROFILE, "Perfil", Icons.Filled.Person)
 )
 private val providerItems = listOf(
-    NavItem(Routes.V_INTERESTS, "Interesados", Icons.Filled.Notifications),
-    NavItem(Routes.V_SERVICES, "Prestaciones", Icons.Filled.Build),
-    NavItem(Routes.V_PROFILE, "Perfil", Icons.Filled.Person)
+    NavItem(Routes.PROVIDER_INTERESTS, "Interesados", Icons.Filled.Notifications),
+    NavItem(Routes.PROVIDER_SERVICES, "Prestaciones", Icons.Filled.Build),
+    NavItem(Routes.PROVIDER_PROFILE, "Perfil", Icons.Filled.Person)
 )
 private val adminItems = listOf(
-    NavItem(Routes.A_PANEL, "Panel", Icons.Filled.Home),
-    NavItem(Routes.A_CATALOG, "Catálogo", Icons.Filled.Settings),
-    NavItem(Routes.A_USERS, "Usuarios", Icons.Filled.Person)
+    NavItem(Routes.ADMIN_PANEL, "Panel", Icons.Filled.Home),
+    NavItem(Routes.ADMIN_SERVICE_CATALOG, "Catálogo", Icons.Filled.Settings),
+    NavItem(Routes.ADMIN_USERS, "Usuarios", Icons.Filled.Person)
 )
 
 @Composable
@@ -109,113 +109,113 @@ fun AppNavHost(
         composable(Routes.RECOVER) { RecoverScreen(vm, onBack = { nav.popBackStack() }) }
 
         // ---------- Productor ----------
-        composable(Routes.P_NEEDS) {
+        composable(Routes.PRODUCER_NEEDS) {
             ProducerNeedsScreen(
                 producerVm,
-                bar = { AppBottomBar(producerItems, Routes.P_NEEDS, producerTab) },
-                onNew = { nav.navigate(Routes.P_NEW) },
-                onOpen = { nav.navigate(Routes.P_RESULTS) }
+                bar = { AppBottomBar(producerItems, Routes.PRODUCER_NEEDS, producerTab) },
+                onNew = { nav.navigate(Routes.PRODUCER_NEW_NEED) },
+                onOpen = { nav.navigate(Routes.PRODUCER_MATCH_RESULTS) }
             )
         }
-        composable(Routes.P_NEW) {
+        composable(Routes.PRODUCER_NEW_NEED) {
             NewNeedScreen(
                 producerVm,
-                bar = { AppBottomBar(producerItems, Routes.P_NEEDS, producerTab) },
+                bar = { AppBottomBar(producerItems, Routes.PRODUCER_NEEDS, producerTab) },
                 onBack = { nav.popBackStack() },
-                onSaved = { nav.navigate(Routes.P_RESULTS) { popUpTo(Routes.P_NEEDS) } }
+                onSaved = { nav.navigate(Routes.PRODUCER_MATCH_RESULTS) { popUpTo(Routes.PRODUCER_NEEDS) } }
             )
         }
-        composable(Routes.P_RESULTS) {
+        composable(Routes.PRODUCER_MATCH_RESULTS) {
             ResultsScreen(
                 producerVm,
-                bar = { AppBottomBar(producerItems, Routes.P_NEEDS, producerTab) },
+                bar = { AppBottomBar(producerItems, Routes.PRODUCER_NEEDS, producerTab) },
                 onBack = { nav.popBackStack() },
-                onCompare = { nav.navigate(Routes.P_COMPARE) }
+                onCompare = { nav.navigate(Routes.PRODUCER_PROVIDER_COMPARISON) }
             )
         }
-        composable(Routes.P_COMPARE) {
+        composable(Routes.PRODUCER_PROVIDER_COMPARISON) {
             CompareScreen(
                 producerVm,
-                bar = { AppBottomBar(producerItems, Routes.P_NEEDS, producerTab) },
+                bar = { AppBottomBar(producerItems, Routes.PRODUCER_NEEDS, producerTab) },
                 onBack = { nav.popBackStack() },
-                onDone = { nav.popBackStack(Routes.P_NEEDS, false) }
+                onDone = { nav.popBackStack(Routes.PRODUCER_NEEDS, false) }
             )
         }
-        composable(Routes.P_PROFILE) {
+        composable(Routes.PRODUCER_PROFILE) {
             ProducerProfileScreen(
                 user,
-                bar = { AppBottomBar(producerItems, Routes.P_PROFILE, producerTab) },
+                bar = { AppBottomBar(producerItems, Routes.PRODUCER_PROFILE, producerTab) },
                 onLogout = vm::logout
             )
         }
 
         // ---------- Prestador ----------
-        composable(Routes.V_INTERESTS) {
+        composable(Routes.PROVIDER_INTERESTS) {
             ProviderInterestsScreen(
                 providerVm,
-                bar = { AppBottomBar(providerItems, Routes.V_INTERESTS, providerTab) },
-                onOpen = { nav.navigate(Routes.V_DETAIL) }
+                bar = { AppBottomBar(providerItems, Routes.PROVIDER_INTERESTS, providerTab) },
+                onOpen = { nav.navigate(Routes.PROVIDER_INTEREST_DETAIL) }
             )
         }
-        composable(Routes.V_DETAIL) {
+        composable(Routes.PROVIDER_INTEREST_DETAIL) {
             InterestDetailScreen(
                 providerVm,
-                bar = { AppBottomBar(providerItems, Routes.V_INTERESTS, providerTab) },
+                bar = { AppBottomBar(providerItems, Routes.PROVIDER_INTERESTS, providerTab) },
                 onBack = { nav.popBackStack() },
                 onDone = { nav.popBackStack() }
             )
         }
-        composable(Routes.V_SERVICES) {
+        composable(Routes.PROVIDER_SERVICES) {
             ProviderServicesScreen(
                 providerVm,
-                bar = { AppBottomBar(providerItems, Routes.V_SERVICES, providerTab) },
-                onNew = { nav.navigate(Routes.V_FORM) },
-                onEdit = { nav.navigate(Routes.V_FORM) }
+                bar = { AppBottomBar(providerItems, Routes.PROVIDER_SERVICES, providerTab) },
+                onNew = { nav.navigate(Routes.PROVIDER_SERVICE_FORM) },
+                onEdit = { nav.navigate(Routes.PROVIDER_SERVICE_FORM) }
             )
         }
-        composable(Routes.V_FORM) {
+        composable(Routes.PROVIDER_SERVICE_FORM) {
             ProviderFormScreen(
                 providerVm,
-                bar = { AppBottomBar(providerItems, Routes.V_SERVICES, providerTab) },
+                bar = { AppBottomBar(providerItems, Routes.PROVIDER_SERVICES, providerTab) },
                 onBack = { nav.popBackStack() }
             )
         }
-        composable(Routes.V_PROFILE) {
+        composable(Routes.PROVIDER_PROFILE) {
             ProviderProfileScreen(
                 user,
-                bar = { AppBottomBar(providerItems, Routes.V_PROFILE, providerTab) },
+                bar = { AppBottomBar(providerItems, Routes.PROVIDER_PROFILE, providerTab) },
                 onLogout = vm::logout
             )
         }
 
         // ---------- Administrador ----------
-        composable(Routes.A_PANEL) {
+        composable(Routes.ADMIN_PANEL) {
             AdminPanelScreen(
                 adminVm,
-                bar = { AppBottomBar(adminItems, Routes.A_PANEL, adminTab) },
-                onCatalog = { nav.navigate(Routes.A_CATALOG) },
+                bar = { AppBottomBar(adminItems, Routes.ADMIN_PANEL, adminTab) },
+                onCatalog = { nav.navigate(Routes.ADMIN_SERVICE_CATALOG) },
                 onLogout = vm::logout
             )
         }
-        composable(Routes.A_CATALOG) {
+        composable(Routes.ADMIN_SERVICE_CATALOG) {
             AdminCatalogScreen(
                 adminVm,
-                bar = { AppBottomBar(adminItems, Routes.A_CATALOG, adminTab) },
+                bar = { AppBottomBar(adminItems, Routes.ADMIN_SERVICE_CATALOG, adminTab) },
                 onLogout = vm::logout
             )
         }
-        composable(Routes.A_USERS) {
+        composable(Routes.ADMIN_USERS) {
             AdminUsersScreen(
                 adminVm,
-                bar = { AppBottomBar(adminItems, Routes.A_USERS, adminTab) },
-                onOpen = { nav.navigate(Routes.A_USER_DETAIL) },
+                bar = { AppBottomBar(adminItems, Routes.ADMIN_USERS, adminTab) },
+                onOpen = { nav.navigate(Routes.ADMIN_USER_DETAIL) },
                 onLogout = vm::logout
             )
         }
-        composable(Routes.A_USER_DETAIL) {
+        composable(Routes.ADMIN_USER_DETAIL) {
             AdminUserDetailScreen(
                 adminVm,
-                bar = { AppBottomBar(adminItems, Routes.A_USERS, adminTab) },
+                bar = { AppBottomBar(adminItems, Routes.ADMIN_USERS, adminTab) },
                 onBack = { nav.popBackStack() },
                 onLogout = vm::logout
             )

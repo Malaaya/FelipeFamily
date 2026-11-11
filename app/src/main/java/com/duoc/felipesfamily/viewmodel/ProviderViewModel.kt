@@ -3,15 +3,14 @@ package com.duoc.felipesfamily.viewmodel
 import android.app.Application
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
-import com.duoc.felipesfamily.data.AppDatabase
 import com.duoc.felipesfamily.data.InterestInfo
 import com.duoc.felipesfamily.data.InterestStatus
-import com.duoc.felipesfamily.data.NeedStatus
 import com.duoc.felipesfamily.data.NotificationEntity
 import com.duoc.felipesfamily.data.ProviderInfo
 import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.data.Roles
 import com.duoc.felipesfamily.data.UserEntity
+import com.duoc.felipesfamily.repository.ProviderRepository
 import com.duoc.felipesfamily.util.Matching
 import com.duoc.felipesfamily.util.NotificationHelper
 import com.duoc.felipesfamily.util.Validators
@@ -54,7 +53,7 @@ private const val MIN_NOTIFY_SCORE = 70
 
 /** Flujo del prestador: administrar sus prestaciones y responder a los productores interesados. */
 class ProviderViewModel(app: Application) : AndroidViewModel(app) {
-    private val db = AppDatabase.get(app)
+    private val providerRepository = ProviderRepository(app)
     private var user: UserEntity? = null
     private var editing: ProviderProfileEntity? = null
 
@@ -97,12 +96,12 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
 
     private suspend fun loadProfiles() {
         val u = user ?: return
-        _profiles.value = db.providerDao().profiles(u.id)
+        _profiles.value = providerRepository.profilesForUser(u.id)
     }
 
     private suspend fun loadInterests() {
         val u = user ?: return
-        _interests.value = db.interestDao().byProvider(u.id)
+        _interests.value = providerRepository.interestsForProvider(u.id)
     }
 
     fun refresh() {
@@ -160,7 +159,7 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
                 experienceYears = f.experience.trim().toInt(), availability = f.availability.trim(),
                 rating = current?.rating ?: 4.5, active = current?.active ?: true, displayName = f.name.trim()
             )
-            val savedId = db.providerDao().save(entity)
+            val savedId = providerRepository.saveProfile(entity)
             loadProfiles()
             if (current == null) {
                 notifyMatchingProducers(
@@ -181,13 +180,13 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
      * (mismo servicio y compatibilidad alta). El aviso queda en su bandeja y se lanza una notificación local.
      */
     private suspend fun notifyMatchingProducers(info: ProviderInfo) {
-        val open = db.needDao().byStatuses(listOf(NeedStatus.NEW, NeedStatus.MATCHED))
+        val open = providerRepository.openNeeds()
         for (need in open) {
             val match = Matching.compute(need, listOf(info)).firstOrNull() ?: continue
             if (match.score < MIN_NOTIFY_SCORE) continue
             val title = "Nueva prestación compatible"
             val text = "${info.name} ofrece ${need.service} y coincide un ${match.score}% con tu necesidad (${need.crop}, ${need.zone})."
-            db.notificationDao().insert(NotificationEntity(userId = need.producerId, title = title, message = text))
+            providerRepository.insertNotification(NotificationEntity(userId = need.producerId, title = title, message = text))
             NotificationHelper.show(getApplication(), title, text)
         }
     }
@@ -195,7 +194,7 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
     /** Activa o desactiva una prestación (desactivada no aparece en el matching). */
     fun toggleActive(p: ProviderProfileEntity) {
         viewModelScope.launch {
-            db.providerDao().setActive(p.id, !p.active)
+            providerRepository.setProfileActive(p.id, !p.active)
             loadProfiles()
         }
     }
@@ -204,8 +203,10 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
     fun deleteService(p: ProviderProfileEntity) {
         val u = user ?: return
         viewModelScope.launch {
-            db.providerDao().delete(p.id)
-            if (db.providerDao().countByUser(u.id) == 0) db.interestDao().deleteByProvider(u.id)
+            providerRepository.deleteProfile(p.id)
+            if (providerRepository.profileCountForUser(u.id) == 0) {
+                providerRepository.deleteInterestsForProvider(u.id)
+            }
             loadProfiles()
             loadInterests()
             _selected.value = null
@@ -224,7 +225,7 @@ class ProviderViewModel(app: Application) : AndroidViewModel(app) {
         val info = _selected.value ?: return
         viewModelScope.launch {
             val status = if (accept) InterestStatus.ACCEPTED else InterestStatus.REJECTED
-            db.interestDao().setStatus(info.interestId, status)
+            providerRepository.updateInterestStatus(info.interestId, status)
             _selected.value = info.copy(status = status)
             loadInterests()
             if (accept) {

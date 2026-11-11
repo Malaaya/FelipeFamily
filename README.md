@@ -17,6 +17,7 @@ Nicolás Robles
 
 ## Arquitectura (MVVM)
 - `data/` – Room: entidades, DAOs y base de datos.
+- `repository/` – acceso a datos de autenticación, productor, prestador y administración; media entre Room y los ViewModels.
 - `util/` – validaciones, matching y recursos nativos.
 - `viewmodel/` – estado y lógica de cada flujo.
 - `ui/` – componentes, navegación y pantallas en Compose.
