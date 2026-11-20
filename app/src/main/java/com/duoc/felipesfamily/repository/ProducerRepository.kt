@@ -3,13 +3,20 @@ package com.duoc.felipesfamily.repository
 import android.content.Context
 import com.duoc.felipesfamily.data.AppDatabase
 import com.duoc.felipesfamily.data.InterestEntity
+import com.duoc.felipesfamily.data.InterestStatus
 import com.duoc.felipesfamily.data.NeedEntity
 import com.duoc.felipesfamily.data.NotificationEntity
 import com.duoc.felipesfamily.data.ProviderInfo
 import com.duoc.felipesfamily.data.ServiceEntity
+import com.duoc.felipesfamily.network.InterestRequestDto
+import com.duoc.felipesfamily.network.NeedDto
+import com.duoc.felipesfamily.network.RetrofitClient
+import com.duoc.felipesfamily.util.ZoneCoords
 
 class ProducerRepository(context: Context) {
     private val database = AppDatabase.get(context)
+    private val api = RetrofitClient.backendApi
+    private val weatherApi = RetrofitClient.weatherApi
 
     suspend fun unseenNotifications(userId: Long): List<NotificationEntity> =
         database.notificationDao().unseen(userId)
@@ -17,21 +24,64 @@ class ProducerRepository(context: Context) {
     suspend fun markNotificationsSeen(userId: Long) =
         database.notificationDao().markAllSeen(userId)
 
-    suspend fun needsForProducer(producerId: Long): List<NeedEntity> =
-        database.needDao().byProducer(producerId)
+    suspend fun needsForProducer(producerId: Long): List<NeedEntity> {
+        runCatching { api.getNeedsByProducer(producerId) }
+        return database.needDao().byProducer(producerId)
+    }
 
-    suspend fun allServices(): List<ServiceEntity> =
-        database.serviceDao().all()
+    suspend fun allServices(): List<ServiceEntity> {
+        runCatching { api.getServices() }
+        return database.serviceDao().all()
+    }
 
-    suspend fun insertNeed(need: NeedEntity): Long =
-        database.needDao().insert(need)
+    suspend fun insertNeed(need: NeedEntity): Long {
+        val localId = database.needDao().insert(need)
+        runCatching {
+            api.createNeed(
+                NeedDto(
+                    id = localId,
+                    producerId = need.producerId,
+                    service = need.service,
+                    crop = need.crop,
+                    surfaceHa = need.surfaceHa,
+                    zone = need.zone,
+                    period = need.period,
+                    product = need.product,
+                    status = need.status
+                )
+            )
+        }
+        return localId
+    }
 
-    suspend fun allActiveProviders(): List<ProviderInfo> =
-        database.providerDao().all()
+    suspend fun allActiveProviders(): List<ProviderInfo> {
+        runCatching { api.getActiveProviders() }
+        return database.providerDao().all()
+    }
 
     suspend fun updateNeed(need: NeedEntity) =
         database.needDao().update(need)
 
-    suspend fun sendInterest(needId: Long, providerId: Long) =
+    suspend fun sendInterest(needId: Long, providerId: Long) {
         database.interestDao().insert(InterestEntity(needId = needId, providerId = providerId))
+        runCatching {
+            api.sendInterest(
+                InterestRequestDto(
+                    needId = needId,
+                    providerId = providerId,
+                    status = InterestStatus.SENT
+                )
+            )
+        }
+    }
+
+    suspend fun fetchZoneWeatherSummary(zone: String): String? {
+        val point = ZoneCoords.of(zone) ?: return null
+        return runCatching {
+            val response = weatherApi.getCurrentWeather(point.latitude, point.longitude)
+            val w = response.currentWeather ?: return null
+            val flightOk = if (w.windspeed <= 20.0) "Viento apto para dron" else "Viento alto para vuelo"
+            "Clima actual en $zone: ${w.temperature}°C · Viento ${w.windspeed} km/h ($flightOk)"
+        }.getOrNull()
+    }
 }

@@ -7,9 +7,12 @@ import com.duoc.felipesfamily.data.ProfileSummary
 import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.data.ServiceEntity
 import com.duoc.felipesfamily.data.UserEntity
+import com.duoc.felipesfamily.network.RetrofitClient
+import com.duoc.felipesfamily.network.ServiceCatalogDto
 
 class AdminRepository(context: Context) {
     private val database = AppDatabase.get(context)
+    private val api = RetrofitClient.backendApi
 
     suspend fun allUsers(): List<UserEntity> = database.userDao().all()
 
@@ -33,6 +36,7 @@ class AdminRepository(context: Context) {
         database.providerDao().deleteByUser(userId)
         database.notificationDao().deleteByUser(userId)
         database.userDao().deleteById(userId)
+        runCatching { api.deleteUser(userId) }
     }
 
     suspend fun deleteNeed(needId: Long) {
@@ -47,6 +51,18 @@ class AdminRepository(context: Context) {
         }
     }
 
-    suspend fun insertService(service: ServiceEntity): Long =
-        database.serviceDao().insert(service)
+    suspend fun insertService(service: ServiceEntity): Long {
+        val id = database.serviceDao().insert(service)
+        runCatching {
+            api.createService(
+                ServiceCatalogDto(
+                    id = id,
+                    name = service.name,
+                    criteria = service.criteria,
+                    radiusKm = service.radiusKm
+                )
+            )
+        }
+        return id
+    }
 }

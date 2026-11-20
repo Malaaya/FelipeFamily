@@ -183,6 +183,7 @@ private fun MatchCard(r: MatchResult, onDetail: () -> Unit, onCompare: () -> Uni
 @Composable
 fun ResultsScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: () -> Unit, onCompare: () -> Unit) {
     val need by vm.selected.collectAsState()
+    val weather by vm.weatherSummary.collectAsState()
     val results by vm.results.collectAsState()
     var filter by remember { mutableIntStateOf(0) }
     var detail by remember { mutableStateOf<MatchResult?>(null) }
@@ -204,6 +205,20 @@ fun ResultsScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
+            }
+            weather?.let { summary ->
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(12.dp),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.secondaryContainer)
+                ) {
+                    Text(
+                        text = "🌤️ $summary",
+                        modifier = Modifier.padding(12.dp),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
             }
             Row(Modifier.horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 labels.forEachIndexed { i, label ->

@@ -171,6 +171,8 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
         _selected.value = current
         _results.value = found
         _chosen.value = 0
+        _weatherSummary.value = null
+        _weatherSummary.value = producerRepository.fetchZoneWeatherSummary(need.zone)
     }
 
     fun selectNeed(need: NeedEntity, onDone: () -> Unit) {
@@ -207,4 +209,7 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
     fun dismissMessage() {
         _message.value = null
     }
+    private val _weatherSummary = MutableStateFlow<String?>(null)
+    val weatherSummary: StateFlow<String?> = _weatherSummary.asStateFlow()
+
 }

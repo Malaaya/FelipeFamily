@@ -54,6 +54,9 @@ dependencies {
     ksp(libs.androidx.room.compiler)
     implementation("androidx.compose.material:material-icons-core")
     implementation("org.osmdroid:osmdroid-android:6.1.20")
+    implementation(libs.retrofit)
+    implementation(libs.retrofit.gson)
+    implementation(libs.okhttp.logging)
 
     testImplementation(libs.junit)
     androidTestImplementation(platform(libs.androidx.compose.bom))
