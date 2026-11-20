@@ -116,10 +116,12 @@ fun NewNeedScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
                 }
             )
             ZoneMap(listOf(MapPoint("Tu zona", f.zone, f.zone, isNeed = true)))
-            AppTextField(
-                label = "Ventana de disponibilidad", value = f.period, onValueChange = { vm.onFormChange(period = it) },
-                error = f.periodError, valid = f.submitted && f.periodError == null, placeholder = "dd/mm - dd/mm",
-                leadingIcon = Icons.Filled.DateRange
+            PeriodPickerField(
+                label = "Ventana de disponibilidad",
+                value = f.period,
+                onValueChange = { vm.onFormChange(period = it) },
+                error = f.periodError,
+                valid = f.submitted && f.periodError == null
             )
             ChoiceChips("Tipo de producto", listOf("Granulado", "Líquido"), f.product, { vm.onFormChange(product = it) })
             PrimaryButton("Registrar necesidad", onClick = vm::submitNeed)

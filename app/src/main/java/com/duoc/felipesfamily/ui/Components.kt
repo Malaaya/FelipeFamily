@@ -1,21 +1,28 @@
 package com.duoc.felipesfamily.ui
 
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.RowScope
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.DateRange
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.DatePickerDialog
+import androidx.compose.material3.DateRangePicker
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -27,7 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.material3.rememberDateRangePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -41,11 +48,14 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import androidx.compose.foundation.text.KeyboardOptions
 import com.duoc.felipesfamily.ui.theme.AccentOrange
 import com.duoc.felipesfamily.ui.theme.DarkGreen
 import com.duoc.felipesfamily.ui.theme.OnAccent
 import com.duoc.felipesfamily.ui.theme.SuccessGreen
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
+import java.util.TimeZone
 
 /** Campo de texto con ícono de estado (error / válido) y mensaje animado. */
 @Composable
@@ -110,7 +120,6 @@ fun OutlineButton(text: String, onClick: () -> Unit, modifier: Modifier = Modifi
     ) { Text(text, fontWeight = FontWeight.SemiBold) }
 }
 
-/** Alternador de dos o más opciones: la elegida se ve rellena y las otras con borde. */
 @Composable
 fun ToggleButtons(options: List<String>, selected: String, onSelect: (String) -> Unit, modifier: Modifier = Modifier) {
     Row(modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -129,7 +138,6 @@ fun ToggleButtons(options: List<String>, selected: String, onSelect: (String) ->
     }
 }
 
-/** Estructura común de pantalla: barra superior verde + contenido. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ScreenScaffold(
@@ -164,7 +172,6 @@ fun ScreenScaffold(
     )
 }
 
-/** Modal de confirmación reutilizable. */
 @Composable
 fun ConfirmDialog(
     title: String,
@@ -182,7 +189,6 @@ fun ConfirmDialog(
     )
 }
 
-/** Centro de ayuda simulado: el usuario escribe un mensaje y "se envía" a soporte (no sale de la app). */
 @Composable
 fun SupportDialog(onDismiss: () -> Unit) {
     var message by remember { mutableStateOf("") }
@@ -212,5 +218,84 @@ fun SupportDialog(onDismiss: () -> Unit) {
             },
             dismissButton = { TextButton(onClick = onDismiss) { Text("Cancelar") } }
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun PeriodPickerField(
+    label: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    error: String? = null,
+    valid: Boolean = false
+) {
+    var showPicker by remember { mutableStateOf(false) }
+
+    Column {
+        Box {
+            OutlinedTextField(
+                value = value,
+                onValueChange = {},
+                readOnly = true,
+                modifier = Modifier.fillMaxWidth(),
+                label = { Text(label) },
+                placeholder = { Text("Toca para seleccionar fechas") },
+                singleLine = true,
+                isError = error != null,
+                leadingIcon = {
+                    Icon(Icons.Filled.DateRange, contentDescription = "Seleccionar fechas")
+                },
+                trailingIcon = when {
+                    error != null -> { { Icon(Icons.Filled.Warning, "Error", tint = MaterialTheme.colorScheme.error) } }
+                    valid -> { { Icon(Icons.Filled.CheckCircle, "Campo válido", tint = SuccessGreen) } }
+                    else -> null
+                },
+                shape = RoundedCornerShape(12.dp)
+            )
+            Box(
+                modifier = Modifier
+                    .matchParentSize()
+                    .clickable { showPicker = true }
+            )
+        }
+        AnimatedVisibility(visible = error != null) {
+            Text(
+                text = error ?: "",
+                color = MaterialTheme.colorScheme.error,
+                style = MaterialTheme.typography.bodySmall,
+                modifier = Modifier.padding(start = 16.dp, top = 4.dp)
+            )
+        }
+    }
+
+    if (showPicker) {
+        val state = rememberDateRangePickerState()
+        DatePickerDialog(
+            onDismissRequest = { showPicker = false },
+            confirmButton = {
+                TextButton(
+                    enabled = state.selectedStartDateMillis != null && state.selectedEndDateMillis != null,
+                    onClick = {
+                        val fmt = SimpleDateFormat("dd/MM", Locale.getDefault()).apply {
+                            timeZone = TimeZone.getTimeZone("UTC")
+                        }
+                        val start = fmt.format(Date(state.selectedStartDateMillis!!))
+                        val end = fmt.format(Date(state.selectedEndDateMillis!!))
+                        onValueChange("$start - $end")
+                        showPicker = false
+                    }
+                ) { Text("Aceptar") }
+            },
+            dismissButton = {
+                TextButton(onClick = { showPicker = false }) { Text("Cancelar") }
+            }
+        ) {
+            DateRangePicker(
+                state = state,
+                title = { Text("Selecciona el rango de fechas", modifier = Modifier.padding(16.dp)) },
+                showModeToggle = false
+            )
+        }
     }
 }

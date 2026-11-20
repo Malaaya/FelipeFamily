@@ -166,12 +166,16 @@ fun ProviderFormScreen(vm: ProviderViewModel, bar: @Composable () -> Unit, onBac
                 label = "Experiencia (años)", value = f.experience, onValueChange = { vm.onFormChange(experience = it) },
                 error = f.experienceError, valid = f.submitted && f.experienceError == null
             )
-            AppTextField(
-                label = "Disponibilidad", value = f.availability, onValueChange = { vm.onFormChange(availability = it) },
-                placeholder = "dd/mm - dd/mm", error = f.availabilityError, valid = f.submitted && f.availabilityError == null
+            PeriodPickerField(
+                label = "Disponibilidad",
+                value = f.availability,
+                onValueChange = { vm.onFormChange(availability = it) },
+                error = f.availabilityError,
+                valid = f.submitted && f.availabilityError == null
             )
             Text("Calificación demostrativa: ${"%.1f".format(rating)} ★", color = MaterialTheme.colorScheme.secondary)
             PrimaryButton("Guardar prestación", onClick = vm::saveProfile)
+
         }
     }
     if (saved) {
