@@ -8,13 +8,14 @@ import android.app.PendingIntent
 import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
+import android.location.Location
+import android.location.LocationManager
 import android.os.Build
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
 import com.duoc.felipesfamily.MainActivity
 
-/** Recurso nativo 1: notificaciones locales (con permiso POST_NOTIFICATIONS en Android 13+). */
 object NotificationHelper {
     private const val CHANNEL_ID = "felipe_family_matching"
 
@@ -44,4 +45,26 @@ object NotificationHelper {
             .build()
         NotificationManagerCompat.from(context).notify(System.currentTimeMillis().toInt(), notification)
     }
+}
+    object LocationHelper {
+        fun hasPermission(context: Context): Boolean =
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) == PackageManager.PERMISSION_GRANTED ||
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) == PackageManager.PERMISSION_GRANTED
+
+        @SuppressLint("MissingPermission")
+        fun detectReferentialZone(context: Context): String? {
+            if (!hasPermission(context)) return null
+            val manager = context.getSystemService(Context.LOCATION_SERVICE) as LocationManager
+            val providers = listOf(LocationManager.GPS_PROVIDER, LocationManager.NETWORK_PROVIDER)
+            val location: Location = providers
+                .mapNotNull { runCatching { manager.getLastKnownLocation(it) }.getOrNull() }
+                .maxByOrNull { it.time }
+                ?: return "Zona Centro-1"
+
+            return when {
+                location.latitude > -32.0 -> "Zona Norte-1"
+                location.latitude >= -37.0 -> "Zona Centro-1"
+                else -> "Zona Sur-1"
+            }
+        }
 }

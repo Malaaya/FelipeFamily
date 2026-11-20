@@ -29,6 +29,7 @@ import com.duoc.felipesfamily.ui.theme.AccentOrange
 import com.duoc.felipesfamily.ui.theme.SuccessGreen
 import com.duoc.felipesfamily.util.NotificationHelper
 import com.duoc.felipesfamily.viewmodel.ProducerViewModel
+import com.duoc.felipesfamily.util.LocationHelper
 
 @Composable
 fun ProducerNeedsScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onNew: () -> Unit, onOpen: () -> Unit) {
@@ -75,6 +76,14 @@ fun NewNeedScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
     val f by vm.form.collectAsState()
     val services by vm.services.collectAsState()
     val confirming by vm.confirming.collectAsState()
+    val context = LocalContext.current
+    val gpsLauncher = rememberLauncherForActivityResult(
+        ActivityResultContracts.RequestMultiplePermissions()
+    ) { permissions ->
+        if (permissions.values.any { it }) {
+            LocationHelper.detectReferentialZone(context)?.let { vm.onFormChange(zone = it) }
+        }
+    }
     ScreenScaffold(title = "Nueva necesidad", onBack = onBack, bottomBar = bar) { padding ->
         ScrollColumn(padding) {
             ChoiceChips("Tipo de servicio", services.map { it.name }, f.service, { vm.onFormChange(service = it) }, f.serviceError)
@@ -90,6 +99,21 @@ fun NewNeedScreen(vm: ProducerViewModel, bar: @Composable () -> Unit, onBack: ()
                 label = "Zona referencial (manual)", value = f.zone, onValueChange = { vm.onFormChange(zone = it) },
                 error = f.zoneError, valid = f.submitted && f.zoneError == null, placeholder = "Ej: Zona Sur-2",
                 leadingIcon = Icons.Filled.LocationOn
+            )
+            OutlineButton(
+                text = "Detectar mi zona por GPS",
+                onClick = {
+                    if (LocationHelper.hasPermission(context)) {
+                        LocationHelper.detectReferentialZone(context)?.let { vm.onFormChange(zone = it) }
+                    } else {
+                        gpsLauncher.launch(
+                            arrayOf(
+                                Manifest.permission.ACCESS_FINE_LOCATION,
+                                Manifest.permission.ACCESS_COARSE_LOCATION
+                            )
+                        )
+                    }
+                }
             )
             ZoneMap(listOf(MapPoint("Tu zona", f.zone, f.zone, isNeed = true)))
             AppTextField(
