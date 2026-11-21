@@ -52,6 +52,8 @@ private val NeedForm.hasErrors
 class ProducerViewModel(app: Application) : AndroidViewModel(app) {
     private val producerRepository = ProducerRepository(app)
     private var user: UserEntity? = null
+    private var saving = false
+    private var selecting = false
 
     private val _needs = MutableStateFlow<List<NeedEntity>>(emptyList())
     val needs: StateFlow<List<NeedEntity>> = _needs.asStateFlow()
@@ -144,24 +146,32 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
     }
 
     fun saveNeed(onDone: () -> Unit) {
+        if (saving) return
         val u = user ?: return
         val f = _form.value
+        saving = true
+        _confirming.value = false
         viewModelScope.launch {
-            val need = NeedEntity(
-                producerId = u.id, service = f.service, crop = f.crop.trim(),
-                surfaceHa = Validators.parseSurface(f.surface) ?: 0.0,
-                zone = f.zone.trim(), period = f.period.trim(), product = f.product
-            )
-            val id = producerRepository.insertNeed(need)
-            select(need.copy(id = id))
-            _form.value = NeedForm(service = f.service)
-            _confirming.value = false
-            loadNeeds()
-            onDone()
+            try {
+                val need = NeedEntity(
+                    producerId = u.id, service = f.service, crop = f.crop.trim(),
+                    surfaceHa = Validators.parseSurface(f.surface) ?: 0.0,
+                    zone = f.zone.trim(), period = f.period.trim(), product = f.product
+                )
+                val id = producerRepository.insertNeed(need)
+                val savedNeed = need.copy(id = id)
+                prepareLocalMatch(savedNeed)
+                launchWeather(savedNeed.zone)
+                _form.value = NeedForm(service = f.service)
+                viewModelScope.launch { loadNeeds() }
+                onDone()
+            } finally {
+                saving = false
+            }
         }
     }
 
-    private suspend fun select(need: NeedEntity) {
+    private suspend fun prepareLocalMatch(need: NeedEntity) {
         val found = Matching.compute(need, producerRepository.allActiveProviders())
         var current = need
         if (found.isNotEmpty() && need.status == NeedStatus.NEW) {
@@ -172,14 +182,26 @@ class ProducerViewModel(app: Application) : AndroidViewModel(app) {
         _results.value = found
         _chosen.value = 0
         _weatherSummary.value = null
-        _weatherSummary.value = producerRepository.fetchZoneWeatherSummary(need.zone)
+    }
+
+    private fun launchWeather(zone: String) {
+        viewModelScope.launch {
+            _weatherSummary.value = producerRepository.fetchZoneWeatherSummary(zone)
+        }
     }
 
     fun selectNeed(need: NeedEntity, onDone: () -> Unit) {
+        if (selecting) return
+        selecting = true
         viewModelScope.launch {
-            select(need)
-            loadNeeds()
-            onDone()
+            try {
+                prepareLocalMatch(need)
+                launchWeather(need.zone)
+                onDone()
+                viewModelScope.launch { loadNeeds() }
+            } finally {
+                selecting = false
+            }
         }
     }
 

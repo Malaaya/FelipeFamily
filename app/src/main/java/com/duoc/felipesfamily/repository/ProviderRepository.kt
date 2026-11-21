@@ -9,10 +9,15 @@ import com.duoc.felipesfamily.data.NotificationEntity
 import com.duoc.felipesfamily.data.ProviderProfileEntity
 import com.duoc.felipesfamily.network.ProviderServiceDto
 import com.duoc.felipesfamily.network.RetrofitClient
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class ProviderRepository(context: Context) {
     private val database = AppDatabase.get(context)
     private val api = RetrofitClient.backendApi
+    private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun profilesForUser(userId: Long): List<ProviderProfileEntity> =
         database.providerDao().profiles(userId)
@@ -22,20 +27,22 @@ class ProviderRepository(context: Context) {
 
     suspend fun saveProfile(profile: ProviderProfileEntity): Long {
         val id = database.providerDao().save(profile)
-        runCatching {
-            api.saveProviderProfile(
-                ProviderServiceDto(
-                    id = id,
-                    userId = profile.userId,
-                    displayName = profile.displayName,
-                    services = profile.services,
-                    coverageKm = profile.coverageKm,
-                    capacityHaDay = profile.capacityHaDay,
-                    experienceYears = profile.experienceYears,
-                    availability = profile.availability,
-                    active = profile.active
+        syncScope.launch {
+            runCatching {
+                api.saveProviderProfile(
+                    ProviderServiceDto(
+                        id = id,
+                        userId = profile.userId,
+                        displayName = profile.displayName,
+                        services = profile.services,
+                        coverageKm = profile.coverageKm,
+                        capacityHaDay = profile.capacityHaDay,
+                        experienceYears = profile.experienceYears,
+                        availability = profile.availability,
+                        active = profile.active
+                    )
                 )
-            )
+            }
         }
         return id
     }
@@ -60,8 +67,10 @@ class ProviderRepository(context: Context) {
 
     suspend fun updateInterestStatus(interestId: Long, status: String) {
         database.interestDao().setStatus(interestId, status)
-        runCatching {
-            api.updateInterestStatus(interestId, mapOf("status" to status))
+        syncScope.launch {
+            runCatching {
+                api.updateInterestStatus(interestId, mapOf("status" to status))
+            }
         }
     }
 }

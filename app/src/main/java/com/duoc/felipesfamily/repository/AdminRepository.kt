@@ -9,10 +9,15 @@ import com.duoc.felipesfamily.data.ServiceEntity
 import com.duoc.felipesfamily.data.UserEntity
 import com.duoc.felipesfamily.network.RetrofitClient
 import com.duoc.felipesfamily.network.ServiceCatalogDto
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.launch
 
 class AdminRepository(context: Context) {
     private val database = AppDatabase.get(context)
     private val api = RetrofitClient.backendApi
+    private val syncScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
 
     suspend fun allUsers(): List<UserEntity> = database.userDao().all()
 
@@ -21,10 +26,19 @@ class AdminRepository(context: Context) {
     suspend fun allProviderSummaries(): List<ProfileSummary> =
         database.providerDao().allSummaries()
 
-    suspend fun allServices(): List<ServiceEntity> = database.serviceDao().all()
+    suspend fun allServices(): List<ServiceEntity> {
+        syncScope.launch {
+            runCatching { api.getServices() }
+        }
+        return database.serviceDao().all()
+    }
 
-    suspend fun needsForProducer(producerId: Long): List<NeedEntity> =
-        database.needDao().byProducer(producerId)
+    suspend fun needsForProducer(producerId: Long): List<NeedEntity> {
+        syncScope.launch {
+            runCatching { api.getNeedsByProducer(producerId) }
+        }
+        return database.needDao().byProducer(producerId)
+    }
 
     suspend fun profilesForProvider(providerId: Long): List<ProviderProfileEntity> =
         database.providerDao().profiles(providerId)
@@ -36,7 +50,9 @@ class AdminRepository(context: Context) {
         database.providerDao().deleteByUser(userId)
         database.notificationDao().deleteByUser(userId)
         database.userDao().deleteById(userId)
-        runCatching { api.deleteUser(userId) }
+        syncScope.launch {
+            runCatching { api.deleteUser(userId) }
+        }
     }
 
     suspend fun deleteNeed(needId: Long) {
@@ -53,15 +69,17 @@ class AdminRepository(context: Context) {
 
     suspend fun insertService(service: ServiceEntity): Long {
         val id = database.serviceDao().insert(service)
-        runCatching {
-            api.createService(
-                ServiceCatalogDto(
-                    id = id,
-                    name = service.name,
-                    criteria = service.criteria,
-                    radiusKm = service.radiusKm
+        syncScope.launch {
+            runCatching {
+                api.createService(
+                    ServiceCatalogDto(
+                        id = id,
+                        name = service.name,
+                        criteria = service.criteria,
+                        radiusKm = service.radiusKm
+                    )
                 )
-            )
+            }
         }
         return id
     }

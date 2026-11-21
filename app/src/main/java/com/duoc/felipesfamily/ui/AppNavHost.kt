@@ -114,7 +114,7 @@ fun AppNavHost(
                 producerVm,
                 bar = { AppBottomBar(producerItems, Routes.PRODUCER_NEEDS, producerTab) },
                 onNew = { nav.navigate(Routes.PRODUCER_NEW_NEED) },
-                onOpen = { nav.navigate(Routes.PRODUCER_MATCH_RESULTS) }
+                onOpen = { nav.navigate(Routes.PRODUCER_MATCH_RESULTS) { launchSingleTop = true } }
             )
         }
         composable(Routes.PRODUCER_NEW_NEED) {
@@ -122,7 +122,10 @@ fun AppNavHost(
                 producerVm,
                 bar = { AppBottomBar(producerItems, Routes.PRODUCER_NEEDS, producerTab) },
                 onBack = { nav.popBackStack() },
-                onSaved = { nav.navigate(Routes.PRODUCER_MATCH_RESULTS) { popUpTo(Routes.PRODUCER_NEEDS) } }
+                onSaved = { nav.navigate(Routes.PRODUCER_MATCH_RESULTS) {
+                    popUpTo(Routes.PRODUCER_NEEDS)
+                    launchSingleTop = true
+                } }
             )
         }
         composable(Routes.PRODUCER_MATCH_RESULTS) {
@@ -130,7 +133,7 @@ fun AppNavHost(
                 producerVm,
                 bar = { AppBottomBar(producerItems, Routes.PRODUCER_NEEDS, producerTab) },
                 onBack = { nav.popBackStack() },
-                onCompare = { nav.navigate(Routes.PRODUCER_PROVIDER_COMPARISON) }
+                onCompare = { nav.navigate(Routes.PRODUCER_PROVIDER_COMPARISON) { launchSingleTop = true } }
             )
         }
         composable(Routes.PRODUCER_PROVIDER_COMPARISON) {
@@ -154,7 +157,7 @@ fun AppNavHost(
             ProviderInterestsScreen(
                 providerVm,
                 bar = { AppBottomBar(providerItems, Routes.PROVIDER_INTERESTS, providerTab) },
-                onOpen = { nav.navigate(Routes.PROVIDER_INTEREST_DETAIL) }
+                onOpen = { nav.navigate(Routes.PROVIDER_INTEREST_DETAIL) { launchSingleTop = true } }
             )
         }
         composable(Routes.PROVIDER_INTEREST_DETAIL) {
@@ -208,7 +211,7 @@ fun AppNavHost(
             AdminUsersScreen(
                 adminVm,
                 bar = { AppBottomBar(adminItems, Routes.ADMIN_USERS, adminTab) },
-                onOpen = { nav.navigate(Routes.ADMIN_USER_DETAIL) },
+                onOpen = { nav.navigate(Routes.ADMIN_USER_DETAIL) { launchSingleTop = true } },
                 onLogout = vm::logout
             )
         }
